@@ -1,0 +1,37 @@
+<mxfile host="app.diagrams.net" agent="ChatGPT">
+  <diagram id="platinumpath-er" name="Modelo E-R - PlatinumPath">
+    <mxGraphModel dx="1447" dy="728" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E7F0FA;strokeColor=#446174;fontColor=#182938;align=left;verticalAlign=top;spacingLeft=13;spacingTop=10;fontSize=13;shadow=0;" value="&amp;lt;b&amp;gt;PlatinumPath&amp;lt;/b&amp;gt; — Modelo Entidade-Relacionamento Preliminar" vertex="1">
+          <mxGeometry height="50" width="680" x="245" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="p" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#446174;fontColor=#182938;align=left;verticalAlign=top;spacingLeft=13;spacingTop=10;fontSize=13;shadow=0;" value="&amp;lt;b&amp;gt;PLATAFORMAS&amp;lt;/b&amp;gt;&amp;lt;hr&amp;gt;&amp;lt;b&amp;gt;id_plataforma&amp;lt;/b&amp;gt; (PK)&amp;lt;br&amp;gt;nome" vertex="1">
+          <mxGeometry height="110" width="220" x="470" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="j" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D3F4E7;strokeColor=#446174;fontColor=#182938;align=left;verticalAlign=top;spacingLeft=13;spacingTop=10;fontSize=13;shadow=0;" value="&amp;lt;b&amp;gt;JOGOS&amp;lt;/b&amp;gt;&amp;lt;hr&amp;gt;&amp;lt;b&amp;gt;id_jogo&amp;lt;/b&amp;gt; (PK)&amp;lt;br&amp;gt;titulo&amp;lt;br&amp;gt;genero&amp;lt;br&amp;gt;estado&amp;lt;br&amp;gt;id_plataforma (FK)" vertex="1">
+          <mxGeometry height="150" width="250" x="455" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="t" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0E4FA;strokeColor=#446174;fontColor=#182938;align=left;verticalAlign=top;spacingLeft=13;spacingTop=10;fontSize=13;shadow=0;" value="&amp;lt;b&amp;gt;TROFEUS&amp;lt;/b&amp;gt;&amp;lt;hr&amp;gt;&amp;lt;b&amp;gt;id_trofeu&amp;lt;/b&amp;gt; (PK)&amp;lt;br&amp;gt;nome&amp;lt;br&amp;gt;tipo&amp;lt;br&amp;gt;conquistado&amp;lt;br&amp;gt;id_jogo (FK)" vertex="1">
+          <mxGeometry height="145" width="245" x="160" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="o" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF0D5;strokeColor=#446174;fontColor=#182938;align=left;verticalAlign=top;spacingLeft=13;spacingTop=10;fontSize=13;shadow=0;" value="&amp;lt;b&amp;gt;OBJETIVOS&amp;lt;/b&amp;gt;&amp;lt;hr&amp;gt;&amp;lt;b&amp;gt;id_objetivo&amp;lt;/b&amp;gt; (PK)&amp;lt;br&amp;gt;descricao&amp;lt;br&amp;gt;concluido&amp;lt;br&amp;gt;id_jogo (FK)" vertex="1">
+          <mxGeometry height="145" width="245" x="755" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="epj" edge="1" parent="1" source="p" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#355F78;strokeWidth=2;fontSize=12;fontColor=#23465A;labelBackgroundColor=#FFFFFF;" target="j" value="1 : N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ejt" edge="1" parent="1" source="j" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#355F78;strokeWidth=2;fontSize=12;fontColor=#23465A;labelBackgroundColor=#FFFFFF;exitX=0.22;exitY=1;exitDx=0;exitDy=0;entryX=0.77;entryY=0;entryDx=0;entryDy=0;" target="t" value="1 : N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ejo" edge="1" parent="1" source="j" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#355F78;strokeWidth=2;fontSize=12;fontColor=#23465A;labelBackgroundColor=#FFFFFF;exitX=0.78;exitY=1;exitDx=0;exitDy=0;entryX=0.23;entryY=0;entryDx=0;entryDy=0;" target="o" value="1 : N">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F7F9FC;strokeColor=#446174;fontColor=#182938;align=left;verticalAlign=top;spacingLeft=13;spacingTop=10;fontSize=13;shadow=0;" value="PK = Chave primária&amp;lt;br&amp;gt;FK = Chave estrangeira&amp;lt;br&amp;gt;1 : N = Um para muitos" vertex="1">
+          <mxGeometry height="95" width="270" x="32" y="70" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
