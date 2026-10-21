@@ -1,0 +1,80 @@
+
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlatinumPath</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <header>
+        <h1>🏆 PlatinumPath</h1>
+        <p>O teu caminho para a platina começa aqui!</p>
+    </header>
+
+    <main>
+
+        <section class="formulario">
+            <h2>Adicionar jogo</h2>
+
+            <form action="{{ url_for('adicionar_jogo') }}" method="POST">
+
+                <input
+                    type="text"
+                    name="nome"
+                    placeholder="Nome do jogo"
+                    maxlength="150"
+                    required
+                >
+
+                <select name="plataforma" required>
+                    <option value="">Escolhe a plataforma</option>
+                    <option value="PS3">PlayStation 3</option>
+                    <option value="PS4">PlayStation 4</option>
+                    <option value="PS5">PlayStation 5</option>
+                </select>
+
+                <button type="submit">Adicionar jogo</button>
+
+            </form>
+        </section>
+
+        <section class="biblioteca">
+            <h2>Os meus jogos</h2>
+
+            {% if jogos %}
+
+                <div class="lista-jogos">
+
+                    {% for jogo in jogos %}
+
+                        <div class="jogo">
+                            <h3>{{ jogo.nome }}</h3>
+                            <p>Plataforma: {{ jogo.plataforma }}</p>
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            {% else %}
+
+                <p class="vazio">
+                    Ainda não tens jogos adicionados.
+                </p>
+
+            {% endif %}
+
+        </section>
+
+    </main>
+
+    <footer>
+        <p>PlatinumPath - Projeto Python</p>
+    </footer>
+
+</body>
+</html>

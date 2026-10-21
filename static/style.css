@@ -1,0 +1,133 @@
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background-color: #121212;
+    color: white;
+    font-family: Arial, sans-serif;
+}
+
+header {
+    background-color: #1c1c1c;
+    text-align: center;
+    padding: 35px 20px;
+    border-bottom: 2px solid #00aaff;
+}
+
+header h1 {
+    color: #00aaff;
+    margin: 0;
+    font-size: 32px;
+}
+
+header p {
+    color: #bbbbbb;
+    margin-top: 12px;
+}
+
+main {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+h2 {
+    color: white;
+    margin-bottom: 20px;
+}
+
+.formulario {
+    background-color: #1e1e1e;
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 40px;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+input, select {
+    background-color: #303030;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 7px;
+    padding: 13px;
+    font-size: 15px;
+    width: 100%;
+}
+
+input:focus, select:focus {
+    outline: 2px solid #00aaff;
+}
+
+button {
+    background-color: #00aaff;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    padding: 13px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0088cc;
+}
+
+.lista-jogos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 15px;
+}
+
+.jogo {
+    background-color: #242424;
+    border: 1px solid #383838;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+.jogo h3 {
+    color: #00aaff;
+    margin-top: 0;
+}
+
+.jogo p {
+    color: #cccccc;
+}
+
+.vazio {
+    color: #aaaaaa;
+    text-align: center;
+    padding: 30px;
+    background-color: #1e1e1e;
+    border-radius: 10px;
+}
+
+footer {
+    text-align: center;
+    color: #777777;
+    padding: 25px;
+    font-size: 13px;
+}
+
+@media (max-width: 600px) {
+    main {
+        margin: 20px auto;
+    }
+
+    header h1 {
+        font-size: 26px;
+    }
+
+    .formulario {
+        padding: 18px;
+    }
+}
