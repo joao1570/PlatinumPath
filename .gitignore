@@ -224,3 +224,15 @@ __marimo__/
 
 # Ambiente virtual
 venv/
+.venv/
+
+# Bases de dados locais
+*.db
+*.db-shm
+*.db-wal
+
+# Credenciais e configuracoes privadas
+.env
+.env.*
+!.env.example
+*npsso*

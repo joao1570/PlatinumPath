@@ -3,78 +3,493 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+
+    <meta name="theme-color" content="#151a30">
     <title>PlatinumPath</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #101426;
+            color: #f5f6ff;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 12px 105px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 5px 25px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 23px;
+            color: #b4bfff;
+        }
+
+        .profile {
+            background: linear-gradient(
+                145deg, #3c4962, #1b2139 65%, #141829
+            );
+            border: 1px solid #3b4867;
+            border-radius: 24px;
+            padding: 23px 17px;
+            margin-bottom: 28px;
+        }
+
+        .profile-top {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 68px;
+            height: 68px;
+            border-radius: 50%;
+            overflow: hidden;
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            background: #34466a;
+            font-size: 30px;
+        }
+
+        .avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .profile h2 {
+            margin: 0 0 6px;
+            font-size: 23px;
+            overflow-wrap: anywhere;
+        }
+
+        .subtitle {
+            color: #b6c4e6;
+            font-size: 13px;
+        }
+
+        .level-label {
+            display: flex;
+            justify-content: space-between;
+            margin: 23px 0 10px;
+            font-size: 14px;
+        }
+
+        .bar {
+            background: #35415e;
+            border-radius: 12px;
+            height: 9px;
+            overflow: hidden;
+        }
+
+        .fill {
+            height: 100%;
+            border-radius: 12px;
+            background: linear-gradient(
+                90deg, #567eff, #8dafff
+            );
+        }
+
+        .trophy-stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+            margin-top: 23px;
+        }
+
+        .trophy-stat {
+            text-align: center;
+            min-width: 0;
+        }
+
+        .trophy-stat .symbol {
+            display: block;
+            font-size: 26px;
+        }
+
+        .bronze { color: #dc8c4a; }
+        .silver { color: #cbd3e2; }
+        .gold { color: #ffd154; }
+        .platinum { color: #78c6ff; }
+
+        .trophy-stat strong {
+            display: block;
+            margin-top: 8px;
+            font-size: 18px;
+        }
+
+        .trophy-stat small {
+            display: block;
+            margin-top: 5px;
+            color: #b5c3e2;
+            font-size: 11px;
+        }
+
+        .profile-total {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 23px;
+            padding-top: 17px;
+            border-top: 1px solid #495674;
+            font-size: 14px;
+        }
+
+        .section-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .section-title h2 {
+            margin: 0;
+            font-size: 21px;
+        }
+
+        .section-title span {
+            color: #a2b0d1;
+            font-size: 12px;
+        }
+
+        .games {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 13px;
+        }
+
+        .game {
+            display: flex;
+            align-items: stretch;
+            min-height: 125px;
+            border: 1px solid #343f60;
+            border-radius: 15px;
+            background: #1b2139;
+            overflow: hidden;
+            text-decoration: none;
+            color: #f5f6ff;
+            transition: border-color 0.2s;
+        }
+
+        .game:hover,
+        .game:focus-visible {
+            border-color: #8daaff;
+        }
+
+        .cover {
+            width: 116px;
+            min-height: 125px;
+            flex-shrink: 0;
+            background: #283657;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            position: relative;
+            font-size: 28px;
+        }
+
+        .cover img {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            inset: 0;
+            object-fit: cover;
+        }
+
+        .game-info {
+            padding: 14px 12px;
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .game-title {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .game-title h3 {
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.35;
+        }
+
+        .platinum-icon {
+            color: #79caff;
+            font-size: 20px;
+        }
+
+        .platform {
+            align-self: flex-start;
+            background: #33466f;
+            color: #bdd1ff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            color: #aebde0;
+            font-size: 12px;
+        }
+
+        .game .bar {
+            height: 7px;
+        }
+
+        .game .fill {
+            background: linear-gradient(
+                90deg, #487aff, #66dccb
+            );
+        }
+
+        .empty {
+            padding: 25px;
+            background: #1b2139;
+            border-radius: 15px;
+            text-align: center;
+            color: #acbbdc;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #171c32;
+            border-top: 1px solid #34405c;
+            padding: 14px 12px 18px;
+            display: flex;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .bottom-nav a {
+            color: #a9baff;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        @media (max-width: 360px) {
+            .cover {
+                width: 95px;
+            }
+
+            .game-info {
+                padding: 10px;
+            }
+
+            .game-title h3 {
+                font-size: 14px;
+            }
+        }
+
+        @media (min-width: 700px) {
+            .container {
+                padding: 30px 25px 110px;
+            }
+
+            .games {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .cover {
+                width: 125px;
+            }
+        }
+    </style>
 </head>
 
 <body>
+    <main class="container">
 
-    <header>
-        <h1>🏆 PlatinumPath</h1>
-        <p>O teu caminho para a platina começa aqui!</p>
-    </header>
+        <header>
+            <h1>🏆 PlatinumPath</h1>
+            <span>🎮</span>
+        </header>
 
-    <main>
+        {% if perfil %}
+        <section class="profile">
 
-        <section class="formulario">
-            <h2>Adicionar jogo</h2>
+            <div class="profile-top">
 
-            <form action="{{ url_for('adicionar_jogo') }}" method="POST">
-
-                <input
-                    type="text"
-                    name="nome"
-                    placeholder="Nome do jogo"
-                    maxlength="150"
-                    required
-                >
-
-                <select name="plataforma" required>
-                    <option value="">Escolhe a plataforma</option>
-                    <option value="PS3">PlayStation 3</option>
-                    <option value="PS4">PlayStation 4</option>
-                    <option value="PS5">PlayStation 5</option>
-                </select>
-
-                <button type="submit">Adicionar jogo</button>
-
-            </form>
-        </section>
-
-        <section class="biblioteca">
-            <h2>Os meus jogos</h2>
-
-            {% if jogos %}
-
-                <div class="lista-jogos">
-
-                    {% for jogo in jogos %}
-
-                        <div class="jogo">
-                            <h3>{{ jogo.nome }}</h3>
-                            <p>Plataforma: {{ jogo.plataforma }}</p>
-                        </div>
-
-                    {% endfor %}
-
+                <div class="avatar">
+                    {% if perfil["avatar_url"] %}
+                        <img
+                            src="{{ perfil['avatar_url'] }}"
+                            alt="Avatar de {{ perfil['online_id'] }}"
+                            class="avatar-img"
+                            onerror="this.style.display='none'">
+                    {% else %}
+                        🎮
+                    {% endif %}
                 </div>
 
+                <div>
+                    <h2>{{ perfil["online_id"] }}</h2>
+                    <span class="subtitle">
+                        Perfil PlayStation Network
+                    </span>
+                </div>
+
+            </div>
+
+            <div class="level-label">
+                <strong>Nível {{ perfil["nivel"] }}</strong>
+                <span>{{ perfil["progresso"] }}%</span>
+            </div>
+
+            <div class="bar">
+                <div class="fill"
+                     style="width: {{ perfil['progresso'] }}%">
+                </div>
+            </div>
+
+            <div class="trophy-stats">
+
+                <div class="trophy-stat">
+                    <span class="symbol bronze">🏆</span>
+                    <strong>{{ perfil["bronze"] }}</strong>
+                    <small>Bronze</small>
+                </div>
+
+                <div class="trophy-stat">
+                    <span class="symbol silver">🏆</span>
+                    <strong>{{ perfil["prata"] }}</strong>
+                    <small>Prata</small>
+                </div>
+
+                <div class="trophy-stat">
+                    <span class="symbol gold">🏆</span>
+                    <strong>{{ perfil["ouro"] }}</strong>
+                    <small>Ouro</small>
+                </div>
+
+                <div class="trophy-stat">
+                    <span class="symbol platinum">💎</span>
+                    <strong>{{ perfil["platina"] }}</strong>
+                    <small>Platina</small>
+                </div>
+
+            </div>
+
+            <div class="profile-total">
+                <span>Total de troféus PSN</span>
+                <strong>
+                    {{ perfil["bronze"] + perfil["prata"] +
+                       perfil["ouro"] + perfil["platina"] }}
+                </strong>
+            </div>
+
+        </section>
+        {% else %}
+        <section class="profile">
+            <h2>Perfil ainda não sincronizado</h2>
+            <p>Sincroniza o teu perfil para mostrar as estatísticas.</p>
+        </section>
+        {% endif %}
+
+        <div class="section-title">
+            <h2>Os teus jogos</h2>
+            <span>{{ total_jogos }} jogos</span>
+        </div>
+
+        <section class="games">
+
+            {% for jogo in jogos %}
+
+            <a class="game"
+               href="{{ url_for('detalhe_jogo', jogo_id=jogo['id']) }}">
+
+                <div class="cover">
+                    🎮
+
+                    {% if jogo["imagem_url"] %}
+                        <img
+                            src="{{ jogo['imagem_url'] }}"
+                            alt="Imagem de {{ jogo['titulo'] }}"
+                            loading="lazy"
+                            referrerpolicy="no-referrer"
+                            onerror="this.style.display='none'">
+                    {% endif %}
+                </div>
+
+                <div class="game-info">
+
+                    <div class="game-title">
+                        <h3>{{ jogo["titulo"] }}</h3>
+
+                        {% if jogo["platinas"] > 0 %}
+                            <span class="platinum-icon"
+                                  title="Platina conquistada">
+                                💎
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <span class="platform">
+                        {{ jogo["plataforma"] }}
+                    </span>
+
+                    <div class="progress-info">
+                        <span>
+                            🏆 {{ jogo["conquistados"] }}/{{ jogo["total"] }}
+                        </span>
+                        <strong>
+                            {{ jogo["progresso"]|int }}%
+                        </strong>
+                    </div>
+
+                    <div class="bar">
+                        <div class="fill"
+                             style="width: {{ jogo['progresso']|int }}%">
+                        </div>
+                    </div>
+
+                </div>
+            </a>
+
             {% else %}
-
-                <p class="vazio">
-                    Ainda não tens jogos adicionados.
-                </p>
-
-            {% endif %}
+            <div class="empty">
+                Ainda não tens jogos registados.
+            </div>
+            {% endfor %}
 
         </section>
 
     </main>
 
-    <footer>
-        <p>PlatinumPath - Projeto Python</p>
-    </footer>
-
+    <nav class="bottom-nav">
+        <a href="{{ url_for('inicio') }}">⌂ Início</a>
+    </nav>
 </body>
 </html>
