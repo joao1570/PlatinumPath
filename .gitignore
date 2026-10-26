@@ -220,4 +220,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Base de dados local do PlatinumPath
-platinumpath.db
+*.db
+
+# Ambiente virtual
+venv/
