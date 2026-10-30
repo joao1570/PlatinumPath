@@ -3,9 +3,7 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#151a30">
     <title>PlatinumPath</title>
 
@@ -169,6 +167,55 @@
         .section-title span {
             color: #a2b0d1;
             font-size: 12px;
+        }
+
+        /* Pesquisa e filtros */
+
+        .filters {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #343f60;
+            border-radius: 15px;
+            background: #1b2139;
+        }
+
+        .filter-search {
+            grid-column: 1 / -1;
+        }
+
+        .filters input,
+        .filters select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #455475;
+            border-radius: 9px;
+            background: #10182d;
+            color: #f5f6ff;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .filters input:focus,
+        .filters select:focus {
+            border-color: #8daaff;
+        }
+
+        .filters input::placeholder {
+            color: #9baacc;
+        }
+
+        .filter-status {
+            grid-column: 1 / -1;
+        }
+
+        .result-count {
+            margin: 0 0 15px;
+            color: #aebde0;
+            font-size: 13px;
         }
 
         .games {
@@ -423,12 +470,61 @@
             <span>{{ total_jogos }} jogos</span>
         </div>
 
-        <section class="games">
+        <!-- Pesquisa, filtros e ordenação -->
+
+        <div class="filters">
+
+            <div class="filter-search">
+                <input
+                    type="search"
+                    id="pesquisa"
+                    placeholder="🔍 Pesquisar jogo..."
+                    aria-label="Pesquisar jogos">
+            </div>
+
+            <div>
+                <select id="plataforma" aria-label="Filtrar plataforma">
+                    <option value="todos">Todas as plataformas</option>
+                    <option value="PS3">PS3</option>
+                    <option value="PS4">PS4</option>
+                    <option value="PS5">PS5</option>
+                    <option value="PS Vita">PS Vita</option>
+                </select>
+            </div>
+
+            <div>
+                <select id="ordenacao" aria-label="Ordenar jogos">
+                    <option value="original">Ordem original</option>
+                    <option value="nome">Nome A-Z</option>
+                    <option value="progresso-desc">Maior progresso</option>
+                    <option value="progresso-asc">Menor progresso</option>
+                </select>
+            </div>
+
+            <div class="filter-status">
+                <select id="estado" aria-label="Filtrar estado">
+                    <option value="todos">Todos os jogos</option>
+                    <option value="platina">Com platina conquistada</option>
+                    <option value="sem-platina">Sem platina conquistada</option>
+                    <option value="incompletos">Progresso abaixo de 100%</option>
+                </select>
+            </div>
+
+        </div>
+
+        <p class="result-count" id="contador"></p>
+
+        <section class="games" id="lista-jogos">
 
             {% for jogo in jogos %}
 
             <a class="game"
-               href="{{ url_for('detalhe_jogo', jogo_id=jogo['id']) }}">
+               href="{{ url_for('detalhe_jogo', jogo_id=jogo['id']) }}"
+               data-titulo="{{ jogo['titulo'] }}"
+               data-plataforma="{{ jogo['plataforma'] }}"
+               data-progresso="{{ jogo['progresso'] }}"
+               data-platinas="{{ jogo['platinas'] }}"
+               data-ordem="{{ loop.index0 }}">
 
                 <div class="cover">
                     🎮
@@ -486,10 +582,123 @@
 
         </section>
 
+        <div class="empty" id="sem-resultados" hidden>
+            Nenhum jogo corresponde aos filtros selecionados.
+        </div>
+
     </main>
 
     <nav class="bottom-nav">
         <a href="{{ url_for('inicio') }}">⌂ Início</a>
     </nav>
+
+    <script>
+        const pesquisa = document.getElementById("pesquisa");
+        const plataforma = document.getElementById("plataforma");
+        const ordenacao = document.getElementById("ordenacao");
+        const estado = document.getElementById("estado");
+        const lista = document.getElementById("lista-jogos");
+        const contador = document.getElementById("contador");
+        const semResultados = document.getElementById("sem-resultados");
+
+        const jogos = Array.from(lista.querySelectorAll(".game"));
+
+        function normalizar(texto) {
+            return String(texto)
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .toLowerCase();
+        }
+
+        function atualizarJogos() {
+            const termo = normalizar(pesquisa.value.trim());
+            const filtroPlataforma = plataforma.value;
+            const filtroEstado = estado.value;
+            const tipoOrdenacao = ordenacao.value;
+
+            const resultados = jogos.filter(jogo => {
+                const titulo = normalizar(jogo.dataset.titulo);
+                const sistema = jogo.dataset.plataforma.trim().toUpperCase();
+                const progresso = Number(jogo.dataset.progresso) || 0;
+                const platinas = Number(jogo.dataset.platinas) || 0;
+
+                const correspondePesquisa = titulo.includes(termo);
+
+                const correspondePlataforma =
+                    filtroPlataforma === "todos" ||
+                    sistema === filtroPlataforma.toUpperCase();
+
+                let correspondeEstado = true;
+
+                if (filtroEstado === "platina") {
+                    correspondeEstado = platinas > 0;
+                } else if (filtroEstado === "sem-platina") {
+                    correspondeEstado = platinas === 0;
+                } else if (filtroEstado === "incompletos") {
+                    correspondeEstado = progresso < 100;
+                }
+
+                return (
+                    correspondePesquisa &&
+                    correspondePlataforma &&
+                    correspondeEstado
+                );
+            });
+
+            resultados.sort((a, b) => {
+                if (tipoOrdenacao === "nome") {
+                    return a.dataset.titulo.localeCompare(
+                        b.dataset.titulo,
+                        "pt",
+                        { sensitivity: "base" }
+                    );
+                }
+
+                if (tipoOrdenacao === "progresso-desc") {
+                    return (
+                        Number(b.dataset.progresso) -
+                        Number(a.dataset.progresso)
+                    );
+                }
+
+                if (tipoOrdenacao === "progresso-asc") {
+                    return (
+                        Number(a.dataset.progresso) -
+                        Number(b.dataset.progresso)
+                    );
+                }
+
+                return (
+                    Number(a.dataset.ordem) -
+                    Number(b.dataset.ordem)
+                );
+            });
+
+            jogos.forEach(jogo => {
+                jogo.hidden = true;
+                jogo.style.display = "none";
+            });
+
+            resultados.forEach(jogo => {
+                jogo.hidden = false;
+                jogo.style.display = "";
+                lista.appendChild(jogo);
+            });
+
+            contador.textContent =
+                resultados.length + " de " +
+                jogos.length + " jogos apresentados";
+
+            semResultados.hidden =
+                resultados.length !== 0 || jogos.length === 0;
+        }
+
+        pesquisa.addEventListener("input", atualizarJogos);
+        plataforma.addEventListener("change", atualizarJogos);
+        ordenacao.addEventListener("change", atualizarJogos);
+        estado.addEventListener("change", atualizarJogos);
+
+        atualizarJogos();
+    </script>
 </body>
 </html>

@@ -1,0 +1,712 @@
+
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1020">
+<title>{{ jogo["titulo"] }} | PlatinumPath</title>
+
+<style>
+:root {
+    --bg: #090d17;
+    --panel: #151b2b;
+    --panel2: #1d2639;
+    --border: #303a50;
+    --blue: #168bff;
+    --text: #f5f7ff;
+    --muted: #a4adc3;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Arial, sans-serif;
+}
+
+a { color: inherit; text-decoration: none; }
+button, input, select { font: inherit; }
+
+.container {
+    max-width: 960px;
+    margin: auto;
+    padding: 18px 16px 95px;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 8px 0 25px;
+}
+
+.back {
+    background: var(--panel2);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    font-size: 25px;
+}
+
+.hero {
+    background: linear-gradient(145deg,#1e355e,#141b2e 65%);
+    border: 1px solid #334366;
+    border-radius: 18px;
+    padding: 23px 20px;
+}
+
+.game-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.game-cover {
+    width: 105px;
+    height: 135px;
+    object-fit: cover;
+    border-radius: 10px;
+    background: #263550;
+    flex-shrink: 0;
+}
+
+.platform {
+    display: inline-block;
+    background: #2364b1;
+    padding: 5px 11px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.hero h1 {
+    font-size: clamp(21px,4vw,32px);
+    margin: 13px 0 8px;
+    line-height: 1.2;
+}
+
+.subtitle { color: #b9c5df; font-size: 13px; }
+
+.progress-layout {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+    margin-top: 25px;
+}
+
+.progress-circle {
+    width: 115px;
+    height: 115px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: conic-gradient(
+        #168bff calc(var(--value) * 1%),
+        #34445e 0
+    );
+    display: grid;
+    place-items: center;
+}
+
+.progress-inner {
+    width: 93px;
+    height: 93px;
+    border-radius: 50%;
+    background: #142039;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-inner strong { font-size: 27px; }
+.progress-inner span { color: var(--muted); font-size: 11px; }
+.progress-data { flex: 1; }
+.progress-data strong { font-size: 19px; }
+.progress-data p {
+    color: #b9c5df;
+    font-size: 13px;
+    margin: 8px 0;
+}
+
+.track {
+    background: #34415a;
+    height: 7px;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 12px;
+}
+
+.track div {
+    width: var(--progress);
+    height: 100%;
+    background: linear-gradient(90deg,#168bff,#68d4ff);
+}
+
+.trophy-summary {
+    display: grid;
+    grid-template-columns: repeat(4,minmax(0,1fr));
+    gap: 9px;
+    margin: 18px 0 25px;
+}
+
+.summary-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    text-align: center;
+    padding: 15px 5px;
+}
+
+.summary-item .symbol {
+    display: block;
+    font-size: 26px;
+    margin-bottom: 8px;
+}
+
+.summary-item strong {
+    display: block;
+    font-size: 20px;
+}
+
+.summary-item small {
+    display: block;
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.platinum { color: #80caff; }
+.gold { color: #ffd25e; }
+.silver { color: #ccd3e3; }
+.bronze { color: #d69561; }
+
+.section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 28px 0 15px;
+}
+
+.section-heading h2 { margin: 0; font-size: 20px; }
+.section-heading span { color: var(--muted); font-size: 12px; }
+
+.search {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: white;
+    outline: none;
+    margin-bottom: 13px;
+}
+
+.search:focus { border-color: var(--blue); }
+
+.controls {
+    display: flex;
+    gap: 9px;
+    overflow-x: auto;
+    padding-bottom: 9px;
+    margin-bottom: 8px;
+}
+
+.controls button,
+.secondary-controls select {
+    background: var(--panel2);
+    color: #c3cee5;
+    border: 1px solid #34415b;
+    padding: 10px 13px;
+    border-radius: 9px;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.controls button.active {
+    background: #176dc5;
+    color: white;
+    border-color: #168bff;
+}
+
+.secondary-controls {
+    display: flex;
+    gap: 9px;
+    margin-bottom: 20px;
+}
+
+.secondary-controls select {
+    flex: 1;
+    min-width: 0;
+}
+
+.trophy {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+}
+
+.trophy.unlocked { border-left: 3px solid #208dff; }
+.trophy.locked { background: #121827; }
+
+.trophy-icon {
+    width: 68px;
+    height: 68px;
+    min-width: 68px;
+    border-radius: 12px;
+    background: #26334d;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    font-size: 27px;
+}
+
+.trophy-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.trophy.locked .trophy-icon img {
+    filter: grayscale(1);
+    opacity: .45;
+}
+
+.trophy-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.trophy-name {
+    font-weight: bold;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+}
+
+.trophy-description {
+    font-size: 12px;
+    color: #b5c2dc;
+    line-height: 1.5;
+    margin-top: 7px;
+    overflow-wrap: anywhere;
+}
+
+.trophy-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+.trophy-state.earned { color: #63d8b1; }
+.trophy-state.missing { color: #a6aec0; }
+
+.favorite {
+    background: transparent;
+    color: #74839e;
+    border: none;
+    font-size: 25px;
+    cursor: pointer;
+    padding: 7px;
+}
+
+.favorite.selected { color: #ffd35b; }
+
+.empty {
+    padding: 30px;
+    text-align: center;
+    color: var(--muted);
+    background: var(--panel);
+    border-radius: 13px;
+    margin-top: 12px;
+}
+
+[hidden] { display: none !important; }
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #111827;
+    border-top: 1px solid #34415b;
+    padding: 15px;
+    text-align: center;
+}
+
+.bottom-nav a {
+    color: #8ebfff;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+@media(max-width:480px) {
+    .game-cover { width: 78px; height: 105px; }
+    .game-header { gap: 13px; }
+    .progress-layout { gap: 14px; }
+    .progress-circle { width: 100px; height: 100px; }
+    .progress-inner { width: 80px; height: 80px; }
+    .progress-inner strong { font-size: 22px; }
+    .trophy-summary { gap: 5px; }
+    .summary-item { padding: 12px 3px; }
+    .summary-item .symbol { font-size: 22px; }
+    .trophy { padding: 11px; gap: 10px; }
+    .trophy-icon { width: 54px; height: 54px; min-width: 54px; }
+    .trophy-name { font-size: 13px; }
+    .trophy-description { font-size: 11px; }
+}
+</style>
+</head>
+
+<body>
+<main class="container">
+
+<header class="topbar">
+    <a class="back" href="{{ url_for('inicio') }}">‹</a>
+    <strong>Detalhes do jogo</strong>
+</header>
+
+<section class="hero">
+
+    <div class="game-header">
+        {% if jogo["imagem_url"] %}
+            <img class="game-cover"
+                 src="{{ jogo['imagem_url'] }}"
+                 alt="Capa de {{ jogo['titulo'] }}"
+                 referrerpolicy="no-referrer">
+        {% endif %}
+
+        <div>
+            <span class="platform">{{ jogo["plataforma"] }}</span>
+            <h1>{{ jogo["titulo"] }}</h1>
+            <span class="subtitle">PlayStation Network · Troféus</span>
+        </div>
+    </div>
+
+    <div class="progress-layout">
+        <div class="progress-circle"
+             style="--value:{{ progresso }}">
+            <div class="progress-inner">
+                <strong>{{ progresso }}%</strong>
+                <span>Concluído</span>
+            </div>
+        </div>
+
+        <div class="progress-data">
+            <strong>{{ conquistados }} / {{ total }}</strong>
+            <p>Troféus conquistados</p>
+            <p>{{ total - conquistados }} por conquistar</p>
+            <div class="track">
+                <div style="--progress:{{ progresso }}%"></div>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<section class="trophy-summary">
+    {% for tipo, simbolo, classe in [
+        ("Platina", "💎", "platinum"),
+        ("Ouro", "🏆", "gold"),
+        ("Prata", "🏆", "silver"),
+        ("Bronze", "🏆", "bronze")
+    ] %}
+    <div class="summary-item">
+        <span class="symbol {{ classe }}">{{ simbolo }}</span>
+        <strong>{{ estatisticas[tipo]["conquistados"] }}</strong>
+        <small>
+            {{ tipo }} · {{ estatisticas[tipo]["total"] }}
+        </small>
+    </div>
+    {% endfor %}
+</section>
+
+<div class="section-heading">
+    <h2>Lista de troféus</h2>
+    <span id="count">{{ total }} troféus</span>
+</div>
+
+<input type="search"
+       class="search"
+       id="search"
+       placeholder="🔍 Pesquisar troféu ou descrição..."
+       aria-label="Pesquisar troféus">
+
+<div class="controls" id="status-controls">
+    <button class="active" data-status="all">Todos</button>
+    <button data-status="earned">Conquistados</button>
+    <button data-status="missing">Por conquistar</button>
+    <button data-status="favorite">★ Favoritos</button>
+</div>
+
+<div class="secondary-controls">
+    <select id="type-filter" aria-label="Filtrar tipo">
+        <option value="all">Todos os tipos</option>
+        <option value="platina">Platina</option>
+        <option value="ouro">Ouro</option>
+        <option value="prata">Prata</option>
+        <option value="bronze">Bronze</option>
+    </select>
+
+    <select id="sort-filter" aria-label="Ordenar troféus">
+        <option value="original">Tipo de troféu</option>
+        <option value="missing">Por conquistar primeiro</option>
+        <option value="earned">Conquistados primeiro</option>
+        <option value="name">Nome A-Z</option>
+    </select>
+</div>
+
+<section id="trophy-list">
+
+{% for t in trofeus %}
+<article
+    class="trophy {{ 'unlocked' if t['conquistado'] else 'locked' }}"
+    data-name="{{ t['nome'] }}"
+    data-description="{{ t['descricao'] or '' }}"
+    data-type="{{ t['tipo']|lower }}"
+    data-earned="{{ 'yes' if t['conquistado'] else 'no' }}"
+    data-order="{{ loop.index0 }}"
+    data-favorite="no"
+    data-id="{{ t['id'] }}">
+
+    <div class="trophy-icon">
+
+        {% if t["imagem_url"] %}
+            <img
+                src="{{ t['imagem_url'] }}"
+                alt="Imagem do troféu {{ t['nome'] }}"
+                loading="lazy"
+                referrerpolicy="no-referrer"
+                onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+            <span hidden>🏆</span>
+        {% else %}
+            <span>🏆</span>
+        {% endif %}
+
+    </div>
+
+    <div class="trophy-info">
+
+        <div class="trophy-name">{{ t["nome"] }}</div>
+
+        {% if t["descricao"] %}
+            <div class="trophy-description">
+                {{ t["descricao"] }}
+            </div>
+        {% endif %}
+
+        <div class="trophy-meta">
+            <span>{{ t["tipo"] }}</span>
+
+            {% if t["conquistado"] %}
+                <span class="trophy-state earned">
+                    ✓ Conquistado
+                </span>
+            {% else %}
+                <span class="trophy-state missing">
+                    🔒 Por conquistar
+                </span>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <button type="button"
+            class="favorite"
+            aria-label="Adicionar aos favoritos"
+            aria-pressed="false"
+            title="Favorito">☆</button>
+
+</article>
+{% else %}
+<div class="empty">
+    Ainda não existem troféus registados para este jogo.
+</div>
+{% endfor %}
+
+</section>
+
+<div class="empty" id="no-results" hidden>
+    Nenhum troféu corresponde aos filtros selecionados.
+</div>
+
+</main>
+
+<nav class="bottom-nav">
+    <a href="{{ url_for('inicio') }}">⌂ Voltar aos jogos</a>
+</nav>
+
+<script>
+const cards = Array.from(document.querySelectorAll(".trophy"));
+const list = document.getElementById("trophy-list");
+const search = document.getElementById("search");
+const typeFilter = document.getElementById("type-filter");
+const sortFilter = document.getElementById("sort-filter");
+const count = document.getElementById("count");
+const noResults = document.getElementById("no-results");
+const buttons = document.querySelectorAll("[data-status]");
+
+let status = "all";
+
+const gameId = {{ jogo["id"]|tojson }};
+const storageKey = "platinumpath-favorites-" + gameId;
+
+let favorites = new Set();
+
+try {
+    const saved = JSON.parse(
+        localStorage.getItem(storageKey) || "[]"
+    );
+    if (Array.isArray(saved)) {
+        favorites = new Set(saved.map(String));
+    }
+} catch (error) {
+    favorites = new Set();
+}
+
+function normalize(value) {
+    return String(value)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+}
+
+function refreshFavorite(card) {
+    const button = card.querySelector(".favorite");
+    const selected = card.dataset.favorite === "yes";
+
+    button.textContent = selected ? "★" : "☆";
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+    button.setAttribute(
+        "aria-label",
+        selected ? "Remover dos favoritos" : "Adicionar aos favoritos"
+    );
+}
+
+cards.forEach(card => {
+    const id = card.dataset.id;
+
+    card.dataset.favorite = favorites.has(id) ? "yes" : "no";
+    refreshFavorite(card);
+
+    card.querySelector(".favorite").addEventListener("click", () => {
+        if (favorites.has(id)) {
+            favorites.delete(id);
+            card.dataset.favorite = "no";
+        } else {
+            favorites.add(id);
+            card.dataset.favorite = "yes";
+        }
+
+        try {
+            localStorage.setItem(
+                storageKey,
+                JSON.stringify([...favorites])
+            );
+        } catch (error) {
+            // Favoritos disponíveis durante a sessão.
+        }
+
+        refreshFavorite(card);
+        updateList();
+    });
+});
+
+buttons.forEach(button => {
+    button.addEventListener("click", () => {
+        status = button.dataset.status;
+
+        buttons.forEach(b => {
+            b.classList.toggle("active", b === button);
+        });
+
+        updateList();
+    });
+});
+
+function updateList() {
+    const term = normalize(search.value.trim());
+    const type = typeFilter.value;
+    const sort = sortFilter.value;
+
+    const visible = cards.filter(card => {
+        const text = normalize(
+            card.dataset.name + " " + card.dataset.description
+        );
+
+        const matchesSearch = text.includes(term);
+        const matchesType =
+            type === "all" || card.dataset.type === type;
+
+        let matchesStatus = true;
+
+        if (status === "earned") {
+            matchesStatus = card.dataset.earned === "yes";
+        } else if (status === "missing") {
+            matchesStatus = card.dataset.earned === "no";
+        } else if (status === "favorite") {
+            matchesStatus = card.dataset.favorite === "yes";
+        }
+
+        return matchesSearch && matchesType && matchesStatus;
+    });
+
+    visible.sort((a, b) => {
+        if (sort === "name") {
+            return a.dataset.name.localeCompare(
+                b.dataset.name, "pt", { sensitivity: "base" }
+            );
+        }
+
+        if (sort === "earned" || sort === "missing") {
+            const aEarned = a.dataset.earned === "yes" ? 1 : 0;
+            const bEarned = b.dataset.earned === "yes" ? 1 : 0;
+
+            const difference = sort === "earned"
+                ? bEarned - aEarned
+                : aEarned - bEarned;
+
+            if (difference !== 0) return difference;
+        }
+
+        return Number(a.dataset.order) - Number(b.dataset.order);
+    });
+
+    cards.forEach(card => {
+        card.hidden = true;
+    });
+
+    visible.forEach(card => {
+        card.hidden = false;
+        list.appendChild(card);
+    });
+
+    count.textContent =
+        visible.length + " / " + cards.length + " troféus";
+
+    noResults.hidden =
+        visible.length !== 0 || cards.length === 0;
+}
+
+search.addEventListener("input", updateList);
+typeFilter.addEventListener("change", updateList);
+sortFilter.addEventListener("change", updateList);
+
+updateList();
+</script>
+</body>
+</html>

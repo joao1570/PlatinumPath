@@ -59,8 +59,14 @@ def inicio():
 @app.route("/jogo/<int:jogo_id>")
 def detalhe_jogo(jogo_id):
     with ligar_base_dados() as conexao:
+        conexao.row_factory = sqlite3.Row
+
         jogo = conexao.execute("""
-            SELECT j.id, j.titulo, p.nome
+            SELECT
+                j.id,
+                j.titulo,
+                p.nome AS plataforma,
+                j.imagem_url
             FROM jogos j
             JOIN plataformas p
                 ON j.plataforma_id = p.id
@@ -71,7 +77,15 @@ def detalhe_jogo(jogo_id):
             abort(404)
 
         trofeus = conexao.execute("""
-            SELECT nome, tipo, conquistado
+            SELECT
+                id,
+                nome,
+                tipo,
+                conquistado,
+                imagem_url,
+                descricao,
+                psn_trophy_id,
+                psn_grupo
             FROM trofeus
             WHERE jogo_id = ?
             ORDER BY
@@ -80,13 +94,36 @@ def detalhe_jogo(jogo_id):
                     WHEN 'Ouro' THEN 2
                     WHEN 'Prata' THEN 3
                     WHEN 'Bronze' THEN 4
+                    ELSE 5
                 END,
                 nome
         """, (jogo_id,)).fetchall()
 
     total = len(trofeus)
-    conquistados = sum(t[2] for t in trofeus)
-    progresso = round(100 * conquistados / total) if total else 0
+
+    conquistados = sum(
+        t["conquistado"] for t in trofeus
+    )
+
+    progresso = (
+        round(100 * conquistados / total)
+        if total else 0
+    )
+
+    estatisticas = {}
+
+    for tipo in ("Platina", "Ouro", "Prata", "Bronze"):
+        lista = [
+            t for t in trofeus
+            if t["tipo"] == tipo
+        ]
+
+        estatisticas[tipo] = {
+            "total": len(lista),
+            "conquistados": sum(
+                t["conquistado"] for t in lista
+            )
+        }
 
     return render_template(
         "jogo.html",
@@ -94,7 +131,8 @@ def detalhe_jogo(jogo_id):
         trofeus=trofeus,
         total=total,
         conquistados=conquistados,
-        progresso=progresso
+        progresso=progresso,
+        estatisticas=estatisticas
     )
 
 
