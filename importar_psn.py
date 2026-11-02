@@ -6,7 +6,7 @@ from jogos import ligar_base_dados
 
 
 def importar_jogos():
-    print("=== IMPORTAR JOGOS DA PSN ===")
+    print("=== PLATINUMPATH - BIBLIOTECA PSN ===")
 
     npsso = getpass("Introduz o NPSSO: ").strip()
 
@@ -18,17 +18,38 @@ def importar_jogos():
         psn = PSNAWP(npsso)
         utilizador = psn.me()
 
-        jogos_psn = list(utilizador.trophy_titles(limit=5))
+        print(f"\nPerfil: {utilizador.online_id}")
+        print("A procurar todos os jogos da PSN...\n")
 
         adicionados = 0
         existentes = 0
+        encontrados = 0
+        ignorados = 0
 
         with ligar_base_dados() as conexao:
+            plataformas_db = {
+                nome.upper(): id_plataforma
+                for id_plataforma, nome in conexao.execute(
+                    "SELECT id, nome FROM plataformas"
+                ).fetchall()
+            }
+
+            jogos_psn = utilizador.trophy_titles(
+                limit=None,
+                page_size=50
+            )
+
             for jogo in jogos_psn:
+                encontrados += 1
+
                 titulo = (jogo.title_name or "").strip()
 
+                if not titulo:
+                    ignorados += 1
+                    continue
+
                 plataformas = {
-                    str(p.value).upper()
+                    str(getattr(p, "value", p)).upper()
                     for p in jogo.title_platform
                 }
 
@@ -36,21 +57,11 @@ def importar_jogos():
                     if plataforma not in plataformas:
                         continue
 
-                    if not titulo:
+                    plataforma_id = plataformas_db.get(plataforma)
+
+                    if plataforma_id is None:
+                        ignorados += 1
                         continue
-
-                    resultado = conexao.execute(
-                        """
-                        SELECT id FROM plataformas
-                        WHERE nome = ?
-                        """,
-                        (plataforma,)
-                    ).fetchone()
-
-                    if resultado is None:
-                        continue
-
-                    plataforma_id = resultado[0]
 
                     existente = conexao.execute(
                         """
@@ -62,8 +73,8 @@ def importar_jogos():
                     ).fetchone()
 
                     if existente:
-                        print(f"Já existe: {titulo} ({plataforma})")
                         existentes += 1
+                        print(f"[EXISTE] {titulo} ({plataforma})")
                         continue
 
                     conexao.execute(
@@ -74,16 +85,18 @@ def importar_jogos():
                         (titulo, plataforma_id)
                     )
 
-                    print(f"Importado: {titulo} ({plataforma})")
                     adicionados += 1
+                    print(f"[NOVO] {titulo} ({plataforma})")
 
-        print("\n=== RESULTADO ===")
+        print("\n=== RESULTADO FINAL ===")
+        print(f"Titulos PSN encontrados: {encontrados}")
         print(f"Jogos adicionados: {adicionados}")
-        print(f"Jogos já existentes: {existentes}")
-        print("Importação concluída!")
+        print(f"Registos existentes: {existentes}")
+        print(f"Registos ignorados: {ignorados}")
+        print("\nImportacao concluida!")
 
     except Exception as erro:
-        print(f"Erro na importação: {erro}")
+        print(f"\nErro na importacao: {erro}")
 
 
 if __name__ == "__main__":

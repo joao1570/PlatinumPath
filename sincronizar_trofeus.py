@@ -15,7 +15,6 @@ BACKUPS = BASE / "Database" / "backups"
 
 def normalizar(texto):
     texto = unicodedata.normalize("NFKD", str(texto or ""))
-
     return "".join(
         c for c in texto
         if not unicodedata.combining(c)
@@ -95,6 +94,16 @@ def obter_jogos(conexao):
     """).fetchall()
 
 
+def contar_trofeus(conexao, jogo_id):
+    resultado = conexao.execute("""
+        SELECT COUNT(*)
+        FROM trofeus
+        WHERE jogo_id = ?
+    """, (jogo_id,)).fetchone()
+
+    return resultado[0]
+
+
 def encontrar_jogo_psn(jogo, titulos):
     nome = normalizar(jogo["titulo"])
     plataforma = normalizar_plataforma(jogo["plataforma"])
@@ -158,8 +167,9 @@ def guardar_trofeus(conexao, jogo_id, trofeus):
     adicionados = 0
     atualizados = 0
 
-    # Uma transação por jogo: evita guardar apenas
-    # parte dos troféus se ocorrer um erro.
+    # Cada jogo é guardado numa transação independente.
+    # Se ocorrer um erro, não são guardados troféus parciais.
+
     with conexao:
         for t in trofeus:
             existente = conexao.execute("""
@@ -238,7 +248,7 @@ def sincronizar():
         print("Não existem jogos registados.")
         return
 
-    print("\nJogos disponíveis:")
+    print(f"\nJogos disponíveis: {len(jogos)}")
 
     for jogo in jogos:
         print(
@@ -246,7 +256,8 @@ def sincronizar():
             f"({jogo['plataforma']})"
         )
 
-    print("\n0 - Sincronizar TODOS os jogos")
+    print("\n0 - Sincronizar apenas jogos sem troféus")
+    print("ID - Sincronizar ou atualizar um jogo específico")
 
     escolha = input("\nEscolhe o ID ou 0: ").strip()
 
@@ -267,7 +278,38 @@ def sincronizar():
         print("Jogo não encontrado.")
         return
 
-    npsso = getpass.getpass("\nIntroduz o NPSSO: ").strip()
+    # Filtrar jogos já sincronizados antes de consultar a PSN.
+    ignorados = 0
+
+    if jogo_id == 0:
+        pendentes = []
+
+        with ligar_base_dados() as conexao:
+            for jogo in selecionados:
+                quantidade = contar_trofeus(
+                    conexao,
+                    jogo["id"]
+                )
+
+                if quantidade > 0:
+                    ignorados += 1
+                else:
+                    pendentes.append(jogo)
+
+        selecionados = pendentes
+
+        print("\n=== ESTADO DA BIBLIOTECA ===")
+        print("Total de jogos:", len(jogos))
+        print("Jogos com troféus:", ignorados)
+        print("Jogos por sincronizar:", len(selecionados))
+
+        if not selecionados:
+            print("\nTodos os jogos já têm troféus guardados.")
+            return
+
+    npsso = getpass.getpass(
+        "\nIntroduz o NPSSO: "
+    ).strip()
 
     if not npsso:
         print("Operação cancelada.")
@@ -279,11 +321,19 @@ def sincronizar():
 
         utilizador = psn.me()
 
-        print("\nA consultar a PSN...")
-        titulos = list(utilizador.trophy_titles(limit=None))
+        print("\nA consultar o histórico PSN...")
+        titulos = list(
+            utilizador.trophy_titles(limit=None)
+        )
+
+        print("Títulos PSN encontrados:", len(titulos))
+
+    except KeyboardInterrupt:
+        print("\nOperação interrompida.")
+        return
 
     except Exception as erro:
-        print("Erro ao autenticar ou consultar a PSN:", erro)
+        print("Erro ao consultar a PSN:", erro)
         return
 
     try:
@@ -299,71 +349,141 @@ def sincronizar():
     total_novos = 0
     total_atualizados = 0
     total_imagens = 0
+    concluidos = 0
+    falhados = 0
+    interrompido = False
 
-    for jogo in selecionados:
-        print("\n" + "=" * 45)
-        print("JOGO:", jogo["titulo"])
+    total_jogos = len(selecionados)
 
-        titulo, plataforma = encontrar_jogo_psn(
-            jogo, titulos
-        )
+    print("\n=== INÍCIO DA SINCRONIZAÇÃO ===")
+    print("Jogos a processar:", total_jogos)
+    print("A PSN pode impor pausas entre pedidos.")
+    print("Podes interromper com Ctrl+C.\n")
 
-        if titulo is None:
-            print("Correspondência PSN não encontrada ou ambígua.")
-            continue
+    try:
+        for indice, jogo in enumerate(selecionados, 1):
+            print("\n" + "=" * 45, flush=True)
 
-        if not titulo.np_communication_id:
-            print("Jogo sem identificador PSN.")
-            continue
+            print(
+                f"PROGRESSO: {indice}/{total_jogos}",
+                flush=True
+            )
 
-        try:
-            lista = list(utilizador.trophies(
-                np_communication_id=titulo.np_communication_id,
-                platform=plataforma,
-                trophy_group_id="all",
-                include_progress=True
-            ))
+            print(
+                "JOGO:", jogo["titulo"],
+                flush=True
+            )
 
-            preparados = preparar_trofeus(lista)
+            titulo, plataforma = encontrar_jogo_psn(
+                jogo,
+                titulos
+            )
 
-            if not preparados:
-                print("Nenhum troféu válido recebido.")
+            if titulo is None:
+                print(
+                    "Correspondência PSN não encontrada "
+                    "ou ambígua."
+                )
+                falhados += 1
                 continue
 
-            with ligar_base_dados() as conexao:
-                novos, atualizados = guardar_trofeus(
-                    conexao,
-                    jogo["id"],
-                    preparados
+            if not titulo.np_communication_id:
+                print("Jogo sem identificador PSN.")
+                falhados += 1
+                continue
+
+            try:
+                print(
+                    "A consultar troféus na PSN...",
+                    flush=True
                 )
 
-            conquistados = sum(
-                t["conquistado"] for t in preparados
-            )
+                lista = list(utilizador.trophies(
+                    np_communication_id=titulo.np_communication_id,
+                    platform=plataforma,
+                    trophy_group_id="all",
+                    include_progress=True
+                ))
 
-            imagens = sum(
-                1 for t in preparados if t["imagem_url"]
-            )
+                preparados = preparar_trofeus(lista)
 
-            total_novos += novos
-            total_atualizados += atualizados
-            total_imagens += imagens
+                if not preparados:
+                    print("Nenhum troféu válido recebido.")
+                    falhados += 1
+                    continue
 
-            print("Troféus recebidos:", len(preparados))
-            print("Novos:", novos)
-            print("Atualizados:", atualizados)
-            print("Conquistados:", conquistados)
-            print("Imagens recebidas:", imagens)
+                with ligar_base_dados() as conexao:
+                    novos, atualizados = guardar_trofeus(
+                        conexao,
+                        jogo["id"],
+                        preparados
+                    )
 
-        except Exception as erro:
-            print("Erro neste jogo:", erro)
+                conquistados = sum(
+                    t["conquistado"] for t in preparados
+                )
 
-    print("\n" + "=" * 45)
-    print("SINCRONIZAÇÃO TERMINADA")
-    print("Novos troféus:", total_novos)
-    print("Troféus atualizados:", total_atualizados)
-    print("Imagens recebidas:", total_imagens)
-    print("=" * 45)
+                imagens = sum(
+                    1 for t in preparados
+                    if t["imagem_url"]
+                )
+
+                total_novos += novos
+                total_atualizados += atualizados
+                total_imagens += imagens
+
+                concluidos += 1
+
+                print("Troféus recebidos:", len(preparados))
+                print("Novos:", novos)
+                print("Atualizados:", atualizados)
+                print("Conquistados:", conquistados)
+                print("Imagens recebidas:", imagens)
+
+                print(
+                    f"[OK] {concluidos} jogos "
+                    "sincronizados nesta execução."
+                )
+
+            except KeyboardInterrupt:
+                raise
+
+            except Exception as erro:
+                falhados += 1
+                print(
+                    f"[ERRO] {jogo['titulo']}: {erro}"
+                )
+                print(
+                    "Este jogo será tentado "
+                    "na próxima execução."
+                )
+                continue
+
+    except KeyboardInterrupt:
+        interrompido = True
+        print("\n\nSincronização interrompida pelo utilizador.")
+        print("Os jogos concluídos continuam guardados.")
+
+    finally:
+        print("\n" + "=" * 45)
+
+        if interrompido:
+            print("SINCRONIZAÇÃO INTERROMPIDA")
+        else:
+            print("SINCRONIZAÇÃO TERMINADA")
+
+        print("Jogos sincronizados nesta execução:", concluidos)
+        print("Jogos já ignorados:", ignorados)
+        print("Jogos com erro ou sem correspondência:", falhados)
+        print("Novos troféus:", total_novos)
+        print("Troféus atualizados:", total_atualizados)
+        print("Imagens recebidas:", total_imagens)
+
+        if interrompido:
+            print("\nPara continuar, executa novamente")
+            print("o programa e escolhe 0.")
+
+        print("=" * 45)
 
 
 if __name__ == "__main__":

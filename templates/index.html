@@ -442,7 +442,13 @@
                 </div>
 
                 <div class="trophy-stat">
-                    <span class="symbol platinum">💎</span>
+                    <span class="symbol platinum">
+    <img
+        src="{{ url_for('static', filename='icons/platinum_trophy.png') }}"
+        alt="Troféu de platina"
+        style="width: 30px; height: 30px; object-fit: contain;"
+    >
+</span>
                     <strong>{{ perfil["platina"] }}</strong>
                     <small>Platina</small>
                 </div>
@@ -494,7 +500,7 @@
 
             <div>
                 <select id="ordenacao" aria-label="Ordenar jogos">
-                    <option value="original">Ordem original</option>
+                    <option value="original">Último troféu conquistado</option>
                     <option value="nome">Nome A-Z</option>
                     <option value="progresso-desc">Maior progresso</option>
                     <option value="progresso-asc">Menor progresso</option>
@@ -546,9 +552,12 @@
 
                         {% if jogo["platinas"] > 0 %}
                             <span class="platinum-icon"
-                                  title="Platina conquistada">
-                                💎
-                            </span>
+      title="Platina conquistada">
+    <img
+        src="{{ url_for('static', filename='icons/platinum_trophy.png') }}"
+        alt="Troféu de platina"
+        style="width: 28px; height: 28px; object-fit: contain;">
+</span>
                         {% endif %}
                     </div>
 
