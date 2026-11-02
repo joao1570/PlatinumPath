@@ -235,4 +235,4 @@ venv/
 .env
 .env.*
 !.env.example
-*npsso*
+*npsso*Database/backups/
