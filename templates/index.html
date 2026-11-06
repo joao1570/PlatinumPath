@@ -424,19 +424,19 @@
             <div class="trophy-stats">
 
                 <div class="trophy-stat">
-                    <span class="symbol bronze">🏆</span>
+                    <span class="symbol bronze"><img src="{{ url_for('static', filename='icons/bronze_trophy.png') }}" alt="Troféu de bronze" width="30" height="30" style="object-fit: contain;"></span>
                     <strong>{{ perfil["bronze"] }}</strong>
                     <small>Bronze</small>
                 </div>
 
                 <div class="trophy-stat">
-                    <span class="symbol silver">🏆</span>
+                    <span class="symbol silver"><img src="{{ url_for('static', filename='icons/silver_trophy.png') }}" alt="Troféu de prata" width="30" height="30" style="object-fit: contain;"></span>
                     <strong>{{ perfil["prata"] }}</strong>
                     <small>Prata</small>
                 </div>
 
                 <div class="trophy-stat">
-                    <span class="symbol gold">🏆</span>
+                    <span class="symbol gold"><img src="{{ url_for('static', filename='icons/gold_trophy.png') }}" alt="Troféu de ouro" width="30" height="30" style="object-fit: contain;"></span>
                     <strong>{{ perfil["ouro"] }}</strong>
                     <small>Ouro</small>
                 </div>
@@ -709,5 +709,6 @@
 
         atualizarJogos();
     </script>
+<a data-platinumpath-amigos href="/amigos" style="position:fixed;right:18px;bottom:18px;z-index:9999;background:#1765d8;color:#fff;padding:13px 19px;border-radius:28px;box-shadow:0 4px 18px #0008;font:bold 15px Arial,sans-serif;text-decoration:none">👥 Amigos</a>
 </body>
 </html>

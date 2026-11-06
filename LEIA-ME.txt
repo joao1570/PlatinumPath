@@ -1,0 +1,28 @@
+PLATINUMPATH — SECÇÃO AMIGOS
+
+INSTALAÇÃO
+1. Antes de tudo, faz uma cópia da pasta PlatinumPath.
+2. Abre este ZIP. Copia os ficheiros amigos.py, iniciar_com_psn.py e instalar_amigos.py para a pasta principal PlatinumPath.
+3. Copia os 3 ficheiros da pasta templates para PlatinumPath/templates/.
+4. Copia static/amigos.css para PlatinumPath/static/.
+5. No terminal, dentro de PlatinumPath, executa:
+   python -m pip install psnawp-api
+   python instalar_amigos.py
+   python iniciar_com_psn.py
+6. Introduz o NPSSO quando solicitado no terminal. NÃO partilhes o token no chat.
+7. Abre http://127.0.0.1:5000/amigos
+
+FUNCIONALIDADES
+- Lista de amigos da PSN (até 200 por consulta), quando a conta permitir.
+- Pesquisa pelo ID exato e abre o perfil PSN.
+- Guardar e remover jogadores dos favoritos LOCAIS no PlatinumPath (não envia pedidos reais de amizade).
+- Resumo de troféus e jogos do jogador (até 80 jogos).
+- Consulta de troféus de um jogo, sujeito a disponibilidade/permissões da PSN.
+- Guarda apenas jogadores adicionados localmente na tabela amigos_guardados da base de dados SQLite existente.
+
+CUIDADOS
+- Não substitui o app.py nem index.html: o instalador faz uma alteração localizada e cria backups.
+- Se os ficheiros tiverem diferenças muito grandes, pode ser necessária uma adaptação.
+- A PSNAWP usa acesso não oficial. Não há garantia de que todos os perfis e jogos estejam acessíveis.
+- NPSSO mantido apenas em memória enquanto a aplicação estiver a correr; nunca o publiques.
+- Alguns jogos e formatos PSN podem precisar de ajustes após teste real.

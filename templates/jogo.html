@@ -418,14 +418,14 @@ button, input, select { font: inherit; }
 </section>
 
 <section class="trophy-summary">
-    {% for tipo, simbolo, classe in [
-        ("Platina", "💎", "platinum"),
-        ("Ouro", "🏆", "gold"),
-        ("Prata", "🏆", "silver"),
-        ("Bronze", "🏆", "bronze")
+    {% for tipo, classe in [
+        ("Platina", "platinum"),
+        ("Ouro", "gold"),
+        ("Prata", "silver"),
+        ("Bronze", "bronze")
     ] %}
     <div class="summary-item">
-        <span class="symbol {{ classe }}">{{ simbolo }}</span>
+        <span class="symbol {{ classe }}"><img src="{{ url_for('static', filename='icons/' ~ classe ~ '_trophy.png') }}" alt="Troféu de {{ tipo|lower }}" width="30" height="30" style="object-fit: contain;"></span>
         <strong>{{ estatisticas[tipo]["conquistados"] }}</strong>
         <small>
             {{ tipo }} · {{ estatisticas[tipo]["total"] }}

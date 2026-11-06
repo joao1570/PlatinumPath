@@ -1,0 +1,8 @@
+<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b1020"><title>Amigos | PlatinumPath</title><link rel="stylesheet" href="{{ url_for('static',filename='amigos.css') }}"></head><body><main class="container">
+<header class="topbar"><a class="back" href="/">‹</a><strong>Amigos PSN</strong></header>
+<section class="hero"><h1>Os teus amigos</h1><p class="subtitle">Amigos da PlayStation Network e jogadores guardados no PlatinumPath</p></section>
+<form class="lookup" action="{{ url_for('amigos.pesquisar_amigo') }}"><input class="search" name="id" maxlength="16" required placeholder="Pesquisar ID da PSN" aria-label="ID da PSN"><button class="btn primary">Pesquisar</button></form>
+{% for categoria,msg in get_flashed_messages(with_categories=true) %}<p class="notice">{{msg}}</p>{% endfor %}{% if erro %}<p class="notice">{{erro}}</p>{% endif %}
+<div class="section-heading"><h2>Jogadores</h2><span>{{ amigos|length }} encontrados</span></div>
+<div class="friend-list">{% for amigo in amigos %}<a class="friend-card" href="{{ url_for('amigos.perfil_amigo',online_id=amigo.id) }}">{% if amigo.avatar %}<img class="avatar" src="{{amigo.avatar}}" alt="Avatar de {{amigo.id}}" loading="lazy" referrerpolicy="no-referrer">{% else %}<div class="avatar"></div>{% endif %}<span><strong>{{amigo.id}}</strong><small>{% if amigo.id|lower in guardados %}Guardado no PlatinumPath{% else %}Amigo PSN{% endif %}</small></span></a>{% else %}<div class="empty">Ainda não existem jogadores para mostrar. Pesquisa um ID para começar.</div>{% endfor %}</div>
+</main><nav class="bottom-nav"><a href="/">⌂ Voltar ao PlatinumPath</a></nav></body></html>

@@ -6,6 +6,10 @@ from jogos import ligar_base_dados
 
 app = Flask(__name__)
 
+from amigos import amigos_bp
+app.register_blueprint(amigos_bp)
+
+
 
 def coluna_existe(conexao, tabela, coluna):
     colunas = conexao.execute(

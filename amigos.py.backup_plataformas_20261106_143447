@@ -1,0 +1,250 @@
+"""Secção de amigos do PlatinumPath (Blueprint isolado)."""
+import os
+import re
+import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
+from functools import lru_cache
+from time import monotonic
+from threading import Lock
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+
+amigos_bp = Blueprint('amigos', __name__)
+DB = Path(__file__).resolve().parent / 'database' / 'platinumpath.db'
+ID_RE = re.compile(r'^[A-Za-z0-9_-]{3,16}$')
+
+_CACHE_AMIGOS = {'ate': 0, 'lista': []}
+_CACHE_LOCK = Lock()
+CACHE_SEGUNDOS = 180
+
+
+def conexao():
+    DB.parent.mkdir(exist_ok=True)
+    c = sqlite3.connect(DB)
+    c.row_factory = sqlite3.Row
+    c.execute('''CREATE TABLE IF NOT EXISTS amigos_guardados (
+        online_id TEXT PRIMARY KEY COLLATE NOCASE,
+        avatar_url TEXT,
+        adicionado_em TEXT NOT NULL
+    )''')
+    c.commit()
+    return c
+
+
+def cliente():
+    token = os.environ.get('PSN_NPSSO', '').strip()
+    if not token:
+        raise RuntimeError('PSN não autenticada. Inicia com: python iniciar_com_psn.py')
+    from psnawp_api import PSNAWP
+    return PSNAWP(token)
+
+
+def validar(nome):
+    if not ID_RE.fullmatch(nome or ''):
+        abort(400, description='ID PSN inválido (3–16 caracteres, letras, números, _ ou -).')
+    return nome
+
+
+def atributo(obj, *nomes, padrao=None):
+    for n in nomes:
+        v = obj.get(n) if isinstance(obj, dict) else getattr(obj, n, None)
+        if v is not None:
+            return v
+    return padrao
+
+
+def avatar(dados):
+    from amigos_paginados import _avatar
+    return _avatar(dados)
+
+
+def infos_usuario(usuario, nome=None):
+    p = usuario.profile()
+    return {'id': atributo(p, 'onlineId', 'online_id', padrao=nome or atributo(usuario, 'online_id', padrao='Jogador')),
+            'avatar': avatar(p), 'plus': bool(atributo(p, 'isPlus', padrao=False))}
+
+
+def stats(titulo):
+    ganhos = atributo(titulo, 'earned_trophies', 'earnedTrophies', padrao={}) or {}
+    definidos = atributo(titulo, 'defined_trophies', 'definedTrophies', padrao={}) or {}
+    def total(d, k):
+        return atributo(d, k, padrao=0) or 0
+    return {'nome': atributo(titulo, 'title_name', 'titleName', padrao='Jogo'),
+            'imagem': atributo(titulo, 'title_icon_url', 'titleIconUrl'),
+            'np_id': atributo(titulo, 'np_communication_id', 'npCommunicationId', padrao=''),
+            'plataforma': atributo(titulo, 'title_platform', 'titlePlatform', padrao=''),
+            'progresso': atributo(titulo, 'progress', padrao=0) or 0,
+            'ganhos': {k: total(ganhos, k) for k in ('platinum','gold','silver','bronze')},
+            'definidos': {k: total(definidos, k) for k in ('platinum','gold','silver','bronze')}}
+
+
+@lru_cache(maxsize=1)
+def icones_tipos():
+    """Usa exclusivamente imagens de tipos de trofeu já presentes no projeto."""
+    pasta = Path(__file__).resolve().parent / 'static'
+    resultado = {}
+    nomes = {
+        'platinum': ('platinum', 'platina'),
+        'gold': ('gold', 'ouro'),
+        'silver': ('silver', 'prata'),
+        'bronze': ('bronze',),
+    }
+    for ficheiro in pasta.rglob('*'):
+        if not ficheiro.is_file() or ficheiro.suffix.lower() not in ('.png', '.webp', '.svg', '.jpg', '.jpeg'):
+            continue
+        nome = ficheiro.stem.lower()
+        if any(parte in nome for parte in ('avatar', 'cover', 'capa', 'game', 'jogo')):
+            continue
+        for classe, palavras in nomes.items():
+            if classe not in resultado and any(palavra in nome for palavra in palavras):
+                resultado[classe] = ficheiro.relative_to(pasta).as_posix()
+    return resultado
+
+
+def amigos_psn_rapido():
+    """Obtém a lista de amigos numa consulta, sem consultar cada perfil."""
+    agora = monotonic()
+    with _CACHE_LOCK:
+        if agora < _CACHE_AMIGOS['ate']:
+            return [dict(x) for x in _CACHE_AMIGOS['lista']]
+
+    lista = []
+    for usuario in cliente().me().friends_list(limit=200):
+        # Sem usuario.profile() aqui: uma chamada adicional por amigo atrasava a página.
+        identificador = atributo(usuario, 'online_id', 'onlineId')
+        if not identificador:
+            continue
+        lista.append({'id': identificador, 'avatar': avatar(usuario), 'plus': False})
+
+    with _CACHE_LOCK:
+        _CACHE_AMIGOS['lista'] = lista
+        _CACHE_AMIGOS['ate'] = monotonic() + CACHE_SEGUNDOS
+    return [dict(x) for x in lista]
+
+
+@amigos_bp.route('/amigos')
+def lista_amigos():
+    from amigos_paginados import obter_pagina
+    from flask import request
+    try:
+        pagina = max(1, int(request.args.get('pagina', 1)))
+    except (ValueError, TypeError):
+        pagina = 1
+    atualizar = request.args.get('atualizar') == '1'
+    with conexao() as c:
+        guardados = [dict(x) for x in c.execute('SELECT * FROM amigos_guardados ORDER BY online_id').fetchall()]
+    oficiais, erro, total, pagina_real = [], None, 0, pagina
+    try:
+        oficiais, pagina_real, total, erro = obter_pagina(cliente(), pagina, atualizar)
+    except Exception as exc:
+        erro = f'PSN indisponível: {type(exc).__name__}. Tenta abrir novamente.'
+    vistos = {x['id'].lower() for x in oficiais}
+    # Os jogadores guardados aparecem na primeira página.
+    if pagina_real == 1:
+        for g in guardados:
+            if g['online_id'].lower() not in vistos:
+                oficiais.append({'id': g['online_id'], 'avatar': g['avatar_url'], 'plus': False})
+    return render_template('amigos.html', amigos=oficiais,
+        guardados={x['online_id'].lower() for x in guardados}, erro=erro,
+        pagina_amigos=pagina_real, total_psn=total, por_pagina=12)
+
+
+@amigos_bp.route('/amigos/pesquisar')
+def pesquisar_amigo():
+    nome = validar(request.args.get('id', '').strip())
+    try:
+        info = infos_usuario(cliente().user(online_id=nome), nome)
+        return redirect(url_for('amigos.perfil_amigo', online_id=info['id']))
+    except Exception as e:
+        flash(f'Não foi possível encontrar o jogador: {type(e).__name__}.', 'erro')
+        return redirect(url_for('amigos.lista_amigos'))
+
+
+@amigos_bp.route('/amigos/guardar/<online_id>', methods=['POST'])
+def guardar_amigo(online_id):
+    online_id = validar(online_id)
+    # Guardar no PlatinumPath não envia um pedido de amizade à PSN.
+    imagem = None
+    try:
+        imagem = infos_usuario(cliente().user(online_id=online_id), online_id)['avatar']
+    except Exception:
+        pass
+    with conexao() as c:
+        c.execute('INSERT OR IGNORE INTO amigos_guardados (online_id, avatar_url, adicionado_em) VALUES (?, ?, ?)',
+                  (online_id, imagem, datetime.now(timezone.utc).isoformat()))
+        c.commit()
+    flash('Jogador guardado no PlatinumPath.', 'ok')
+    return redirect(url_for('amigos.perfil_amigo', online_id=online_id))
+
+
+@amigos_bp.route('/amigos/remover/<online_id>', methods=['POST'])
+def remover_amigo(online_id):
+    validar(online_id)
+    with conexao() as c:
+        c.execute('DELETE FROM amigos_guardados WHERE online_id = ?', (online_id,))
+        c.commit()
+    flash('Jogador removido da lista guardada.', 'ok')
+    return redirect(url_for('amigos.lista_amigos'))
+
+
+@amigos_bp.route('/amigos/<online_id>')
+def perfil_amigo(online_id):
+    validar(online_id)
+    erro, info, jogos, resumo = None, {'id': online_id, 'avatar': None}, [], None
+    try:
+        usuario = cliente().user(online_id=online_id)
+        info = infos_usuario(usuario, online_id)
+        s = usuario.trophy_summary()
+        ganhos = atributo(s, 'earned_trophies', 'earnedTrophies', padrao={}) or {}
+        resumo = {'nivel': atributo(s, 'trophy_level', 'trophyLevel', padrao='—'),
+                  'platina': atributo(ganhos, 'platinum', padrao=0), 'ouro': atributo(ganhos, 'gold', padrao=0),
+                  'prata': atributo(ganhos, 'silver', padrao=0), 'bronze': atributo(ganhos, 'bronze', padrao=0)}
+        jogos = [stats(t) for t in usuario.trophy_titles(limit=80)]
+    except Exception as e:
+        erro = f'Não foi possível consultar os troféus: {type(e).__name__}. O perfil pode ser privado ou a sessão pode ter expirado.'
+    with conexao() as c:
+        guardado = c.execute('SELECT 1 FROM amigos_guardados WHERE online_id = ?', (online_id,)).fetchone() is not None
+    return render_template('amigo_perfil.html', info=info, jogos=jogos, resumo=resumo, erro=erro, guardado=guardado, icones_amigos=icones_tipos())
+
+
+@amigos_bp.route('/amigos/<online_id>/trofeus/<np_id>')
+def trofeus_amigo(online_id, np_id):
+    validar(online_id)
+    if not re.fullmatch(r'[A-Za-z0-9_\-]{3,80}', np_id):
+        abort(400)
+    from psnawp_api.models.trophies.trophy_constants import PlatformType
+    # A plataforma é obtida da lista oficial do utilizador, sem confiar numa query arbitrária.
+    erro, lista, nome_jogo = None, [], 'Troféus'
+    try:
+        u = cliente().user(online_id=online_id)
+        titulo = next((t for t in u.trophy_titles(limit=500) if atributo(t, 'np_communication_id', 'npCommunicationId') == np_id), None)
+        if titulo is None:
+            abort(404)
+        nome_jogo = atributo(titulo, 'title_name', 'titleName', padrao='Jogo')
+        plataformas = atributo(titulo, 'title_platform', 'titlePlatform', padrao='PS4')
+        p = str(plataformas).upper()
+        plataforma = (PlatformType.PS3 if 'PS3' in p else PlatformType.PS_VITA if 'VITA' in p else PlatformType.PS5 if 'PS5' in p else PlatformType.PS4)
+        for t in u.trophies(np_id, plataforma, include_progress=True, limit=250):
+            lista.append({'nome': atributo(t, 'trophy_name', 'trophyName', padrao='Troféu'),
+                          'descricao': atributo(t, 'trophy_detail', 'trophyDetail', padrao=''),
+                          'tipo': str(atributo(t, 'trophy_type', 'trophyType', padrao='')).split('.')[-1],
+                          'imagem': atributo(t, 'trophy_icon_url', 'trophyIconUrl'),
+                          'conquistado': bool(atributo(t, 'earned', padrao=False))})
+    except Exception as e:
+        if hasattr(e, 'code') and e.code == 404:
+            raise
+        erro = f'Não foi possível obter os troféus: {type(e).__name__}. Verifica a privacidade da conta.'
+    tipos = ('platinum', 'gold', 'silver', 'bronze')
+    estatisticas = {tipo: {'total': 0, 'ganhos': 0} for tipo in tipos}
+    for t in lista:
+        tipo = str(t['tipo']).lower()
+        if tipo in estatisticas:
+            estatisticas[tipo]['total'] += 1
+            if t['conquistado']:
+                estatisticas[tipo]['ganhos'] += 1
+    ganhos = sum(bool(t['conquistado']) for t in lista)
+    progresso = round(100 * ganhos / len(lista)) if lista else 0
+    return render_template('amigo_trofeus.html', online_id=online_id,
+                           nome_jogo=nome_jogo, trofeus=lista, erro=erro,
+                           conquistados_amigo=ganhos, progresso_amigo=progresso,
+                           estatisticas_amigo=estatisticas, icones_amigos=icones_tipos())

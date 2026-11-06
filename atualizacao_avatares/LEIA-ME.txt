@@ -1,0 +1,5 @@
+1. Extrai a pasta atualizacao_avatares dentro de PlatinumPath.
+2. Executa: py -3.14 atualizacao_avatares\instalar_avatares.py
+3. Executa: py -3.14 iniciar_com_psn.py
+4. Abre /amigos e atualiza Ctrl+F5.
+Se persistir, avisa: poderá ser bloqueio das imagens pela CDN PSN.
