@@ -1,26 +1,35 @@
-"""Consulta paginada/cacheada da lista PSN. Não armazena tokens nem credenciais."""
+"""Amigos PSN com paginação, cache local e pedidos limitados por página.
+
+O cache guarda IDs/avatares públicos, nunca tokens ou passwords.
+"""
 import json
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from threading import RLock
+from threading import RLock, local
+
 from psnawp_api.utils import BASE_PATH, API_PATH
 
-CACHE = Path(__file__).resolve().parent / 'database' / 'amigos_cache.json'
+CACHE = Path(__file__).resolve().parent / 'Database' / 'amigos_cache.json'
 LOCK = RLock()
 PAGE_SIZE = 12
+CACHE_TTL = 30 * 60
+PROFILE_RETRY_TTL = 5 * 60
+_WORKERS = local()
 
 
 def _read():
     try:
         with LOCK:
-            x = json.loads(CACHE.read_text(encoding='utf-8'))
-        if isinstance(x, dict):
-            return x
-    except (OSError, ValueError):
+            cache = json.loads(CACHE.read_text(encoding='utf-8'))
+        if isinstance(cache, dict) and isinstance(cache.get('accounts'), list) and isinstance(cache.get('users'), dict):
+            cache.setdefault('updated', 0)
+            cache.setdefault('failed', {})
+            return cache
+    except (OSError, ValueError, TypeError):
         pass
-    return {'accounts': [], 'users': {}, 'updated': 0}
+    return {'accounts': [], 'users': {}, 'updated': 0, 'failed': {}}
 
 
 def _write(cache):
@@ -32,7 +41,6 @@ def _write(cache):
 
 
 def _avatar(profile):
-    """Extrai URL de imagem de perfil da resposta PSN moderna/legada."""
     if not isinstance(profile, dict):
         return None
     p = profile.get('profile') or profile
@@ -45,12 +53,9 @@ def _avatar(profile):
         if not isinstance(imgs, list):
             continue
         order = {'xl': 0, 'l': 1, 'm': 2, 's': 3}
-        imgs = sorted(imgs, key=lambda entry: order.get(str(entry.get('size', '')).lower(), 4) if isinstance(entry, dict) else 5)
-        for entry in imgs:
-            if isinstance(entry, dict):
-                url = entry.get('url') or entry.get('avatarUrl') or entry.get('profilePictureUrl') or entry.get('avatar_url')
-            else:
-                url = entry if isinstance(entry, str) else None
+        imgs = sorted(imgs, key=lambda e: order.get(str(e.get('size', '')).lower(), 4) if isinstance(e, dict) else 5)
+        for item in imgs:
+            url = item.get('url') or item.get('avatarUrl') or item.get('profilePictureUrl') if isinstance(item, dict) else item
             if isinstance(url, str) and url.startswith(('https://', 'http://')):
                 return url
     for key in ('avatarUrl', 'avatar_url', 'profilePictureUrl', 'avatar'):
@@ -62,54 +67,91 @@ def _avatar(profile):
 
 def _account_ids(psn):
     url = BASE_PATH['profile_uri'] + API_PATH['friends_list'].format(account_id='me')
-    result = psn.authenticator.get(url=url, params={'limit': 200}).json()
-    return [str(x) for x in result.get('friends', []) if x]
+    response = psn.authenticator.get(url=url, params={'limit': 1000}).json()
+    accounts = response.get('friends', [])
+    if not isinstance(accounts, list):
+        raise ValueError('Resposta PSN inesperada para a lista de amigos')
+    return list(dict.fromkeys(str(a) for a in accounts if a))
 
 
 def _load_profile(account_id, token):
-    # Cada worker usa a sua própria instância de autenticação.
+    # Uma instância PSNAWP por trabalhador (não uma por amigo).
     from psnawp_api import PSNAWP
-    psn = PSNAWP(token)
+    if not getattr(_WORKERS, 'psn', None):
+        _WORKERS.psn = PSNAWP(token)
+    psn = _WORKERS.psn
     url = BASE_PATH['profile_uri'] + API_PATH['profiles'].format(account_id=account_id)
     p = psn.authenticator.get(url=url).json()
+    if not isinstance(p, dict):
+        raise ValueError('Perfil PSN inválido')
+    agora = time.time()
     return {'id': p.get('onlineId') or p.get('currentOnlineId') or p.get('online_id'),
             'avatar': _avatar(p), 'plus': bool(p.get('isPlus') or p.get('plus')),
-            'obtido': time.time(), 'avatar_verificado': time.time()}
+            'obtido': agora, 'avatar_verificado': agora}
 
 
-def obter_pagina(psn, pagina=1, atualizar=False):
+def obter_pagina(psn=None, pagina=1, atualizar=False):
     cache = _read()
     aviso = None
     agora = time.time()
-    # Evita atualizar toda a lista em cada abertura: só 1 chamada a cada 30 min.
-    if atualizar or not cache.get('accounts') or agora - cache.get('updated', 0) > 1800:
+    accounts = cache['accounts']
+
+    if psn is not None and (atualizar or not accounts or agora - cache.get('updated', 0) > CACHE_TTL):
         try:
-            cache['accounts'] = _account_ids(psn)
+            novos = _account_ids(psn)
+            # Atualizar apenas após a resposta ter sido recebida e validada.
+            cache['accounts'] = novos
             cache['updated'] = agora
+            accounts = novos
             _write(cache)
-        except Exception as exc:
-            if not cache.get('accounts'):
-                raise
-            aviso = 'Não foi possível atualizar a PSN; a mostrar amigos em cache.'
-    accounts = cache.get('accounts', [])
+        except Exception:
+            aviso = 'Não foi possível atualizar a lista PSN; a mostrar os dados guardados.'
+    elif psn is None:
+        aviso = ('Sem ligação à PSN: a mostrar amigos guardados em cache. '
+                 'Inicia com python iniciar_com_psn.py para atualizar.')
+
+    accounts = cache['accounts']
     total = len(accounts)
-    pagina = max(1, min(pagina, max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)))
+    try:
+        pagina = int(pagina)
+    except (ValueError, TypeError):
+        pagina = 1
+    paginas = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    pagina = max(1, min(pagina, paginas))
     selected = accounts[(pagina - 1) * PAGE_SIZE:pagina * PAGE_SIZE]
     users = cache.setdefault('users', {})
-    faltam = [a for a in selected if a not in users or not users[a].get('id') or (not users[a].get('avatar') and agora - users[a].get('avatar_verificado', 0) > 3600) or (atualizar and agora - users[a].get('obtido', 0) > 30)]
-    if faltam:
-        token = os.environ.get('PSN_NPSSO', '').strip()
-        # Poucos pedidos em simultâneo para evitar bloquear ou saturar a PSN.
-        with ThreadPoolExecutor(max_workers=3) as pool:
-            tasks = {pool.submit(_load_profile, a, token): a for a in faltam}
-            for future in as_completed(tasks):
-                account_id = tasks[future]
-                try:
-                    result = future.result()
-                    if result['id']:
-                        users[account_id] = result
-                        _write(cache)
-                except Exception:
-                    aviso = 'Alguns perfis não responderam; podes tentar novamente mais tarde.'
-    amigos = [dict(users[a]) for a in selected if a in users and users[a].get('id')]
+    failed = cache.setdefault('failed', {})
+
+    if psn is not None and os.environ.get('PSN_NPSSO', '').strip():
+        faltam = [a for a in selected if
+                  (a not in users or not users[a].get('id') or
+                   (not users[a].get('avatar') and agora - users[a].get('avatar_verificado', 0) > 3600) or
+                   (atualizar and agora - users[a].get('obtido', 0) > 30))
+                  and agora - failed.get(a, 0) > PROFILE_RETRY_TTL]
+        if faltam:
+            token = os.environ['PSN_NPSSO'].strip()
+            with ThreadPoolExecutor(max_workers=min(3, len(faltam))) as pool:
+                tasks = {pool.submit(_load_profile, a, token): a for a in faltam}
+                for future in as_completed(tasks):
+                    account_id = tasks[future]
+                    try:
+                        result = future.result()
+                        if result.get('id'):
+                            users[account_id] = result
+                            failed.pop(account_id, None)
+                        else:
+                            failed[account_id] = agora
+                            aviso = 'Alguns perfis não devolveram um ID PSN. Podes tentar mais tarde.'
+                    except Exception:
+                        failed[account_id] = agora
+                        aviso = 'Alguns perfis não responderam à PSN; os restantes continuam visíveis.'
+            _write(cache)
+
+    amigos = []
+    for account_id in selected:
+        dados = users.get(account_id)
+        if isinstance(dados, dict) and dados.get('id'):
+            amigos.append(dict(dados))
+        else:
+            amigos.append({'id': None, 'account_id': account_id, 'avatar': None, 'plus': False})
     return amigos, pagina, total, aviso

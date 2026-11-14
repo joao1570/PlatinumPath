@@ -1,10 +1,14 @@
 
 import sqlite3
+import os
+import secrets
 
 from flask import Flask, abort, render_template
 from jogos import ligar_base_dados
 
 app = Flask(__name__)
+# Necessário para mensagens flash em pesquisa/guardar/remover amigos.
+app.secret_key = os.environ.get("PLATINUMPATH_SECRET_KEY") or secrets.token_hex(32)
 
 from amigos import amigos_bp
 app.register_blueprint(amigos_bp)

@@ -2,6 +2,7 @@
 import getpass
 import sqlite3
 import unicodedata
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -63,7 +64,8 @@ def preparar_base_dados(conexao):
         "psn_trophy_id": "INTEGER",
         "psn_grupo": "TEXT",
         "imagem_url": "TEXT",
-        "descricao": "TEXT"
+        "descricao": "TEXT",
+        "data_conquista": "TEXT"
     }
 
     for nome, tipo in novas_colunas.items():
@@ -138,10 +140,7 @@ def preparar_trofeus(trofeus_psn):
         if trofeu.trophy_id is None:
             continue
 
-        tipo_original = getattr(
-            trofeu.trophy_type, "value", ""
-        )
-
+        tipo_original = getattr(trofeu.trophy_type, "value", trofeu.trophy_type)
         tipo = tipos.get(str(tipo_original).lower())
 
         if tipo is None:
@@ -150,7 +149,11 @@ def preparar_trofeus(trofeus_psn):
         imagem = getattr(trofeu, "trophy_icon_url", None)
         descricao = getattr(trofeu, "trophy_detail", None)
 
+        data = getattr(trofeu, 'earned_date_time', None)
+        data_conquista = data.isoformat() if data is not None and getattr(trofeu, 'earned', False) else None
+
         preparados.append({
+            "data_conquista": data_conquista,
             "psn_id": int(trofeu.trophy_id),
             "grupo": trofeu.trophy_group_id or "default",
             "nome": trofeu.trophy_name or "Troféu oculto",
@@ -191,7 +194,11 @@ def guardar_trofeus(conexao, jogo_id, trofeus):
                         tipo = ?,
                         conquistado = ?,
                         imagem_url = COALESCE(?, imagem_url),
-                        descricao = COALESCE(?, descricao)
+                        descricao = COALESCE(?, descricao),
+                        data_conquista = CASE
+                            WHEN ? = 1 THEN COALESCE(?, data_conquista)
+                            ELSE NULL
+                        END
                     WHERE id = ?
                 """, (
                     t["nome"],
@@ -199,6 +206,8 @@ def guardar_trofeus(conexao, jogo_id, trofeus):
                     t["conquistado"],
                     t["imagem_url"],
                     t["descricao"],
+                    t["conquistado"],
+                    t["data_conquista"],
                     existente["id"]
                 ))
 
@@ -214,9 +223,10 @@ def guardar_trofeus(conexao, jogo_id, trofeus):
                         psn_trophy_id,
                         psn_grupo,
                         imagem_url,
-                        descricao
+                        descricao,
+                        data_conquista
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     jogo_id,
                     t["nome"],
@@ -225,12 +235,52 @@ def guardar_trofeus(conexao, jogo_id, trofeus):
                     t["psn_id"],
                     t["grupo"],
                     t["imagem_url"],
-                    t["descricao"]
+                    t["descricao"],
+                    t["data_conquista"]
                 ))
 
                 adicionados += 1
 
     return adicionados, atualizados
+
+
+def _limite_api(exc):
+    """Só repetir throttling e erros temporários de rede/servidor."""
+    status = getattr(exc, 'status_code', None) or getattr(exc, 'code', None)
+    if not status and getattr(exc, 'response', None) is not None:
+        status = getattr(exc.response, 'status_code', None)
+    if status is None and '429' in str(exc):
+        status = 429
+    # PSNAWP 2.x lança exceções próprias sem status_code.
+    from psnawp_api.core.psnawp_exceptions import PSNAWPTooManyRequests, PSNAWPServerError
+    return (isinstance(exc, (PSNAWPTooManyRequests, PSNAWPServerError))
+            or status == 429 or status in (500, 502, 503, 504))
+
+
+def consultar_trofeus(utilizador, np_id, plataforma, tentativas=3):
+    """Consulta completa; aguarda em 429 sem criar entradas parciais na BD."""
+    for tentativa in range(tentativas):
+        try:
+            return list(utilizador.trophies(
+                np_communication_id=np_id,
+                platform=plataforma,
+                trophy_group_id='all',
+                include_progress=True,
+                limit=None
+            ))
+        except Exception as erro:
+            if not _limite_api(erro) or tentativa == tentativas - 1:
+                raise
+            pausa = (10, 25, 45)[min(tentativa, 2)]
+            print(f'PSN temporariamente indisponível (429/5xx). Pausa de {pausa}s antes da nova tentativa.')
+            time.sleep(pausa)
+
+
+def total_esperado(titulo):
+    dados = getattr(titulo, 'defined_trophies', None)
+    if dados is None:
+        return 0
+    return sum(int(getattr(dados, k, 0) or 0) for k in ('bronze', 'silver', 'gold', 'platinum'))
 
 
 def sincronizar():
@@ -257,22 +307,21 @@ def sincronizar():
         )
 
     print("\n0 - Sincronizar apenas jogos sem troféus")
+    print("A - Atualizar todos os jogos (muitos pedidos à PSN)")
     print("ID - Sincronizar ou atualizar um jogo específico")
 
-    escolha = input("\nEscolhe o ID ou 0: ").strip()
+    escolha = input("\nEscolhe 0, A ou um ID: ").strip().lower()
 
-    if not escolha.isdigit():
-        print("ID inválido.")
+    if escolha not in ('0', 'a') and not escolha.isdigit():
+        print("Opção inválida.")
         return
 
-    jogo_id = int(escolha)
+    jogo_id = int(escolha) if escolha.isdigit() else -1
 
-    if jogo_id == 0:
+    if jogo_id in (0, -1):
         selecionados = jogos
     else:
-        selecionados = [
-            j for j in jogos if j["id"] == jogo_id
-        ]
+        selecionados = [j for j in jogos if j["id"] == jogo_id]
 
     if not selecionados:
         print("Jogo não encontrado.")
@@ -398,14 +447,13 @@ def sincronizar():
                     flush=True
                 )
 
-                lista = list(utilizador.trophies(
-                    np_communication_id=titulo.np_communication_id,
-                    platform=plataforma,
-                    trophy_group_id="all",
-                    include_progress=True
-                ))
-
+                lista = consultar_trofeus(utilizador, titulo.np_communication_id, plataforma)
                 preparados = preparar_trofeus(lista)
+                esperado = total_esperado(titulo)
+                if esperado and len(preparados) < esperado:
+                    print(f'Resposta incompleta ({len(preparados)}/{esperado}). Sem alterar a BD.')
+                    falhados += 1
+                    continue
 
                 if not preparados:
                     print("Nenhum troféu válido recebido.")
