@@ -12,10 +12,10 @@ from pathlib import Path
 from psnawp_api import PSNAWP
 
 RAIZ = Path(__file__).resolve().parent
-DB = RAIZ / 'database' / 'platinumpath.db'
+DB = RAIZ / 'Database' / 'platinumpath.db'
 APP = RAIZ / 'app.py'
 INDEX = RAIZ / 'templates' / 'index.html'
-BACKUP = RAIZ / 'database' / 'backups'
+BACKUP = RAIZ / 'Database' / 'backups'
 
 
 def norm(valor):

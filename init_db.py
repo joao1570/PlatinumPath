@@ -3,7 +3,7 @@ import sqlite3
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-DATABASE_DIR = BASE_DIR / "database"
+DATABASE_DIR = BASE_DIR / "Database"
 DATABASE_PATH = DATABASE_DIR / "platinumpath.db"
 SCHEMA_PATH = DATABASE_DIR / "schema.sql"
 

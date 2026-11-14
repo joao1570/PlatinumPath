@@ -10,7 +10,7 @@ from threading import Lock
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
 amigos_bp = Blueprint('amigos', __name__)
-DB = Path(__file__).resolve().parent / 'database' / 'platinumpath.db'
+DB = Path(__file__).resolve().parent / 'Database' / 'platinumpath.db'
 ID_RE = re.compile(r'^[A-Za-z0-9_-]{3,16}$')
 
 _CACHE_AMIGOS = {'ate': 0, 'lista': []}
@@ -107,7 +107,7 @@ def icones_tipos():
         'silver': ('silver', 'prata'),
         'bronze': ('bronze',),
     }
-    for ficheiro in pasta.rglob('*'):
+    for ficheiro in sorted((pasta / 'icons').glob('*')):
         if not ficheiro.is_file() or ficheiro.suffix.lower() not in ('.png', '.webp', '.svg', '.jpg', '.jpeg'):
             continue
         nome = ficheiro.stem.lower()
@@ -153,10 +153,11 @@ def lista_amigos():
         guardados = [dict(x) for x in c.execute('SELECT * FROM amigos_guardados ORDER BY online_id').fetchall()]
     oficiais, erro, total, pagina_real = [], None, 0, pagina
     try:
-        oficiais, pagina_real, total, erro = obter_pagina(cliente(), pagina, atualizar)
+        psn = cliente() if os.environ.get('PSN_NPSSO', '').strip() else None
+        oficiais, pagina_real, total, erro = obter_pagina(psn, pagina, atualizar)
     except Exception as exc:
         erro = f'PSN indisponível: {type(exc).__name__}. Tenta abrir novamente.'
-    vistos = {x['id'].lower() for x in oficiais}
+    vistos = {x['id'].lower() for x in oficiais if x.get('id')}
     # Os jogadores guardados aparecem na primeira página.
     if pagina_real == 1:
         for g in guardados:
@@ -209,6 +210,7 @@ def remover_amigo(online_id):
 def perfil_amigo(online_id):
     validar(online_id)
     erro, info, jogos, resumo = None, {'id': online_id, 'avatar': None}, [], None
+    pagina_jogos, tem_mais_jogos = 1, False
     try:
         usuario = cliente().user(online_id=online_id)
         info = infos_usuario(usuario, online_id)
@@ -217,12 +219,18 @@ def perfil_amigo(online_id):
         resumo = {'nivel': atributo(s, 'trophy_level', 'trophyLevel', padrao='—'),
                   'platina': atributo(ganhos, 'platinum', padrao=0), 'ouro': atributo(ganhos, 'gold', padrao=0),
                   'prata': atributo(ganhos, 'silver', padrao=0), 'bronze': atributo(ganhos, 'bronze', padrao=0)}
-        jogos = [stats(t) for t in usuario.trophy_titles(limit=80)]
+        pagina_jogos = max(1, min(request.args.get('pagina', 1, type=int) or 1, 1000))
+        por_pagina_jogos = 40
+        titulos = list(usuario.trophy_titles(limit=por_pagina_jogos + 1,
+                                              offset=(pagina_jogos - 1) * por_pagina_jogos,
+                                              page_size=por_pagina_jogos + 1))
+        tem_mais_jogos = len(titulos) > por_pagina_jogos
+        jogos = [stats(t) for t in titulos[:por_pagina_jogos]]
     except Exception as e:
         erro = f'Não foi possível consultar os troféus: {type(e).__name__}. O perfil pode ser privado ou a sessão pode ter expirado.'
     with conexao() as c:
         guardado = c.execute('SELECT 1 FROM amigos_guardados WHERE online_id = ?', (online_id,)).fetchone() is not None
-    return render_template('amigo_perfil.html', info=info, jogos=jogos, resumo=resumo, erro=erro, guardado=guardado, icones_amigos=icones_tipos())
+    return render_template('amigo_perfil.html', info=info, jogos=jogos, resumo=resumo, erro=erro, guardado=guardado, icones_amigos=icones_tipos(), pagina_jogos=pagina_jogos, tem_mais_jogos=tem_mais_jogos)
 
 
 @amigos_bp.route('/amigos/<online_id>/trofeus/<np_id>')
@@ -235,21 +243,21 @@ def trofeus_amigo(online_id, np_id):
     erro, lista, nome_jogo = None, [], 'Troféus'
     try:
         u = cliente().user(online_id=online_id)
-        titulo = next((t for t in u.trophy_titles(limit=500) if atributo(t, 'np_communication_id', 'npCommunicationId') == np_id), None)
+        titulo = next((t for t in u.trophy_titles(limit=None) if atributo(t, 'np_communication_id', 'npCommunicationId') == np_id), None)
         if titulo is None:
             abort(404)
         nome_jogo = atributo(titulo, 'title_name', 'titleName', padrao='Jogo')
         plataformas = atributo(titulo, 'title_platform', 'titlePlatform', padrao='PS4')
         p = str(plataformas).upper()
         plataforma = (PlatformType.PS3 if 'PS3' in p else PlatformType.PS_VITA if 'VITA' in p else PlatformType.PS5 if 'PS5' in p else PlatformType.PS4)
-        for t in u.trophies(np_id, plataforma, include_progress=True, limit=250):
+        for t in u.trophies(np_id, plataforma, trophy_group_id='all', include_progress=True, limit=None):
             lista.append({'nome': atributo(t, 'trophy_name', 'trophyName', padrao='Troféu'),
                           'descricao': atributo(t, 'trophy_detail', 'trophyDetail', padrao=''),
                           'tipo': str(atributo(t, 'trophy_type', 'trophyType', padrao='')).split('.')[-1],
                           'imagem': atributo(t, 'trophy_icon_url', 'trophyIconUrl'),
                           'conquistado': bool(atributo(t, 'earned', padrao=False))})
     except Exception as e:
-        if hasattr(e, 'code') and e.code == 404:
+        if getattr(e, 'code', None) == 404:
             raise
         erro = f'Não foi possível obter os troféus: {type(e).__name__}. Verifica a privacidade da conta.'
     tipos = ('platinum', 'gold', 'silver', 'bronze')

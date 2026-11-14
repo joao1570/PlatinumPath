@@ -3,6 +3,7 @@ import getpass
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 def main():
     token = getpass.getpass('NPSSO da PlayStation (não é guardado): ').strip()
@@ -11,7 +12,8 @@ def main():
         return
     env = os.environ.copy()
     env['PSN_NPSSO'] = token
-    subprocess.run([sys.executable, 'app.py'], env=env, check=False)
+    subprocess.run([sys.executable, str(Path(__file__).resolve().parent / 'app.py')],
+                   cwd=Path(__file__).resolve().parent, env=env, check=False)
 
 if __name__ == '__main__':
     main()
