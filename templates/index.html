@@ -374,15 +374,34 @@
             }
         }
     </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='visual.css') }}">
+<!-- PlatinumPath visual v2 -->
 </head>
 
 <body>
     <main class="container">
 
-        <header>
-            <h1>🏆 PlatinumPath</h1>
-            <span>🎮</span>
+        <header class="site-header">
+            <div class="brand-lockup">
+                <span class="brand-symbol" aria-hidden="true">✦</span>
+                <div>
+                    <h1 class="brand-title">PLATINUM<span>PATH</span></h1>
+                    <span class="brand-caption">A tua jornada PlayStation</span>
+                </div>
+            </div>
+            <nav class="main-nav" aria-label="Navegação principal">
+                <a class="active" aria-current="page" href="{{ url_for('inicio') }}"><span class="nav-dot">⌂</span> Início</a>
+                <a href="{{ url_for('amigos.lista_amigos') }}"><span class="nav-dot">♧</span> Amigos</a>
+            </nav>
         </header>
+
+        <div class="intro-row">
+            <div>
+                <span class="eyebrow">PlatinumPath Dashboard</span>
+                <h2>O teu universo de troféus.</h2>
+            </div>
+            <span class="intro-helper">Acompanha os teus jogos.<br>Conquista a próxima platina.</span>
+        </div>
 
         {% if perfil %}
         <section class="profile">
@@ -402,6 +421,7 @@
                 </div>
 
                 <div>
+                    <span class="profile-label">Perfil PSN</span>
                     <h2>{{ perfil["online_id"] }}</h2>
                     <span class="subtitle">
                         Perfil PlayStation Network
@@ -410,15 +430,15 @@
 
             </div>
 
-            <div class="level-label">
-                <strong>Nível {{ perfil["nivel"] }}</strong>
-                <span>{{ perfil["progresso"] }}%</span>
-            </div>
-
-            <div class="bar">
-                <div class="fill"
-                     style="width: {{ perfil['progresso'] }}%">
+            <div class="level-wrap">
+                <div class="level-label">
+                    <strong>Nível {{ perfil["nivel"] }}</strong>
+                    <span>{{ perfil["progresso"] }}%</span>
                 </div>
+                <div class="bar" role="progressbar" aria-label="Progresso de nível PSN" aria-valuenow="{{ perfil['progresso'] }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="fill" style="width: {{ perfil['progresso'] }}%"></div>
+                </div>
+                <p class="level-footnote">Rumo ao próximo nível PlayStation</p>
             </div>
 
             <div class="trophy-stats">
@@ -471,8 +491,14 @@
         </section>
         {% endif %}
 
+        <section class="metric-grid" aria-label="Resumo da biblioteca">
+            <div class="metric-card"><span class="metric-icon" aria-hidden="true">▣</span><div class="metric-body"><strong>{{ total_jogos }}</strong><span>Jogos na biblioteca</span></div></div>
+            <div class="metric-card"><span class="metric-icon" aria-hidden="true">✦</span><div class="metric-body"><strong>{{ jogos|sum(attribute='platinas') }}</strong><span>Platinas conquistadas</span></div></div>
+            <div class="metric-card"><span class="metric-icon" aria-hidden="true">◔</span><div class="metric-body"><strong>{{ ((jogos|sum(attribute='progresso')) / total_jogos)|round|int if total_jogos else 0 }}%</strong><span>Progresso médio</span></div></div>
+        </section>
+
         <div class="section-title">
-            <h2>Os teus jogos</h2>
+            <h2>A tua biblioteca</h2>
             <span>{{ total_jogos }} jogos</span>
         </div>
 
@@ -525,6 +551,7 @@
             {% for jogo in jogos %}
 
             <a class="game"
+               title="{{ jogo['titulo'] }}"
                href="{{ url_for('detalhe_jogo', jogo_id=jogo['id']) }}"
                data-titulo="{{ jogo['titulo'] }}"
                data-plataforma="{{ jogo['plataforma'] }}"
@@ -597,9 +624,6 @@
 
     </main>
 
-    <nav class="bottom-nav">
-        <a href="{{ url_for('inicio') }}">⌂ Início</a>
-    </nav>
 
     <script>
         const pesquisa = document.getElementById("pesquisa");
@@ -709,6 +733,6 @@
 
         atualizarJogos();
     </script>
-<a data-platinumpath-amigos href="/amigos" style="position:fixed;right:18px;bottom:18px;z-index:9999;background:#1765d8;color:#fff;padding:13px 19px;border-radius:28px;box-shadow:0 4px 18px #0008;font:bold 15px Arial,sans-serif;text-decoration:none">👥 Amigos</a>
+
 </body>
 </html>
