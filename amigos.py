@@ -20,7 +20,7 @@ CACHE_SEGUNDOS = 180
 
 def conexao():
     DB.parent.mkdir(exist_ok=True)
-    c = sqlite3.connect(DB)
+    c = sqlite3.connect(DB, timeout=15)
     c.row_factory = sqlite3.Row
     c.execute('''CREATE TABLE IF NOT EXISTS amigos_guardados (
         online_id TEXT PRIMARY KEY COLLATE NOCASE,
@@ -142,41 +142,39 @@ def amigos_psn_rapido():
 
 @amigos_bp.route('/amigos')
 def lista_amigos():
-    from amigos_paginados import obter_pagina
-    from flask import request
-    try:
-        pagina = max(1, int(request.args.get('pagina', 1)))
-    except (ValueError, TypeError):
-        pagina = 1
+    from amigos_paginados import PAGE_SIZE, filtrar_amigos, obter_lista_completa
+    pesquisa = request.args.get('q', '', type=str).strip()
+    if len(pesquisa) > 80:
+        abort(400, description='Pesquisa demasiado longa (máximo: 80 caracteres).')
+    pagina = max(1, request.args.get('pagina', 1, type=int) or 1)
     atualizar = request.args.get('atualizar') == '1'
     with conexao() as c:
-        guardados = [dict(x) for x in c.execute('SELECT * FROM amigos_guardados ORDER BY online_id').fetchall()]
-    oficiais, erro, total, pagina_real = [], None, 0, pagina
+        guardados = [dict(x) for x in c.execute('SELECT * FROM amigos_guardados ORDER BY online_id COLLATE NOCASE').fetchall()]
+    amigos_psn, erro, total, incompletos = [], None, 0, 0
     try:
         psn = cliente() if os.environ.get('PSN_NPSSO', '').strip() else None
-        oficiais, pagina_real, total, erro = obter_pagina(psn, pagina, atualizar)
+        amigos_psn, total, erro, incompletos = obter_lista_completa(psn, atualizar)
     except Exception as exc:
-        erro = f'PSN indisponível: {type(exc).__name__}. Tenta abrir novamente.'
-    vistos = {x['id'].lower() for x in oficiais if x.get('id')}
-    # Os jogadores guardados aparecem na primeira página.
-    if pagina_real == 1:
-        for g in guardados:
-            if g['online_id'].lower() not in vistos:
-                oficiais.append({'id': g['online_id'], 'avatar': g['avatar_url'], 'plus': False})
-    return render_template('amigos.html', amigos=oficiais,
-        guardados={x['online_id'].lower() for x in guardados}, erro=erro,
-        pagina_amigos=pagina_real, total_psn=total, por_pagina=12)
+        erro = f'PSN indisponível: {type(exc).__name__}. A consulta dos amigos não foi concluída.'
+    filtrados = filtrar_amigos(amigos_psn, pesquisa)
+    total_filtrados = len(filtrados)
+    paginas = max(1, (total_filtrados + PAGE_SIZE - 1) // PAGE_SIZE)
+    pagina = min(pagina, paginas)
+    amigos_visiveis = filtrados[(pagina - 1) * PAGE_SIZE:pagina * PAGE_SIZE]
+    return render_template('amigos.html', amigos=amigos_visiveis,
+        guardados={g['online_id'].lower() for g in guardados}, guardados_lista=guardados,
+        erro=erro, pesquisa=pesquisa, total_filtrados=total_filtrados,
+        incompletos=incompletos, pagina_amigos=pagina, total_paginas=paginas,
+        total_psn=total, por_pagina=PAGE_SIZE)
 
 
 @amigos_bp.route('/amigos/pesquisar')
 def pesquisar_amigo():
-    nome = validar(request.args.get('id', '').strip())
-    try:
-        info = infos_usuario(cliente().user(online_id=nome), nome)
-        return redirect(url_for('amigos.perfil_amigo', online_id=info['id']))
-    except Exception as e:
-        flash(f'Não foi possível encontrar o jogador: {type(e).__name__}.', 'erro')
-        return redirect(url_for('amigos.lista_amigos'))
+    # Compatibilidade com links anteriores; nunca consulta a pesquisa global da PSN.
+    termo = request.args.get('q', request.args.get('id', ''), type=str).strip()
+    if not termo or len(termo) > 80:
+        abort(400, description='Introduz um nome ou ID PSN com até 80 caracteres.')
+    return redirect(url_for('amigos.lista_amigos', q=termo))
 
 
 @amigos_bp.route('/amigos/guardar/<online_id>', methods=['POST'])
@@ -253,7 +251,7 @@ def trofeus_amigo(online_id, np_id):
         for t in u.trophies(np_id, plataforma, trophy_group_id='all', include_progress=True, limit=None):
             lista.append({'nome': atributo(t, 'trophy_name', 'trophyName', padrao='Troféu'),
                           'descricao': atributo(t, 'trophy_detail', 'trophyDetail', padrao=''),
-                          'tipo': str(atributo(t, 'trophy_type', 'trophyType', padrao='')).split('.')[-1],
+                          'tipo': str(atributo(atributo(t, 'trophy_type', 'trophyType', padrao=''), 'value', padrao=atributo(t, 'trophy_type', 'trophyType', padrao=''))).split('.')[-1].lower(),
                           'imagem': atributo(t, 'trophy_icon_url', 'trophyIconUrl'),
                           'conquistado': bool(atributo(t, 'earned', padrao=False))})
     except Exception as e:

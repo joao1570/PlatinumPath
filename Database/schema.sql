@@ -39,5 +39,28 @@ CREATE TABLE IF NOT EXISTS objetivos (
         REFERENCES jogos(id) ON DELETE CASCADE
 );
 
-INSERT OR IGNORE INTO plataformas (nome)
-VALUES ('PS3'), ('PS4'), ('PS5');
+INSERT INTO plataformas (nome) SELECT 'PS3' WHERE NOT EXISTS (SELECT 1 FROM plataformas WHERE nome='PS3');
+INSERT INTO plataformas (nome) SELECT 'PS4' WHERE NOT EXISTS (SELECT 1 FROM plataformas WHERE nome='PS4');
+INSERT INTO plataformas (nome) SELECT 'PS5' WHERE NOT EXISTS (SELECT 1 FROM plataformas WHERE nome='PS5');
+
+CREATE TABLE IF NOT EXISTS perfil_psn (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    online_id TEXT NOT NULL,
+    nivel INTEGER NOT NULL,
+    progresso INTEGER NOT NULL,
+    bronze INTEGER NOT NULL,
+    prata INTEGER NOT NULL,
+    ouro INTEGER NOT NULL,
+    platina INTEGER NOT NULL,
+    atualizado_em TEXT NOT NULL,
+    avatar_url TEXT
+);
+CREATE TABLE IF NOT EXISTS amigos_guardados (
+    online_id TEXT PRIMARY KEY COLLATE NOCASE,
+    avatar_url TEXT,
+    adicionado_em TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS verificacao_datas_psn (
+    jogo_id INTEGER PRIMARY KEY,
+    verificado_em TEXT NOT NULL
+);

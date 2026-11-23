@@ -1,0 +1,29 @@
+PLATINUMPATH - INSTALACAO AUTOMATICA WINDOWS (PYTHON 3.14)
+
+PRIMEIRA VEZ:
+1. Faz copia de seguranca da pasta do PlatinumPath.
+2. Extrai este ZIP e copia os ficheiros para a tua pasta PlatinumPath,
+   substituindo apenas os ficheiros com o mesmo nome.
+3. Abre INSTALAR.cmd com duplo clique (ou INSTALAR.bat).
+4. A janela do terminal instala as bibliotecas e cria/prepara a base de dados.
+5. Quando aparecer "INSTALACAO CONCLUIDA", prime uma tecla.
+
+PARA ABRIR A APLICACAO:
+- INICIAR_COM_PSN.cmd  : pede NPSSO e abre o navegador automaticamente.
+- INICIAR_OFFLINE.cmd  : abre a biblioteca local sem NPSSO.
+- ATUALIZAR_TROFEUS.cmd: sincroniza os trofeus pelo terminal (sem servidor).
+
+IMPORTANTE:
+- Clica nos ficheiros com extensao .cmd ou .bat, NAO nos ficheiros .py.
+- Se o Windows mostrar os nomes sem extensoes, no Explorador clica
+  em Ver > Mostrar > Extensoes de nomes de ficheiro.
+- O codigo abre no editor se escolheres um .py, nao inicia a app.
+- Mantem a janela preta aberta enquanto estiveres a usar a aplicacao.
+- O endereco e http://127.0.0.1:5000/
+- O instalador nao apaga a tua base de dados nem altera os trofeus.
+  Antes de preparar a BD, guarda um backup em Database/backups/.
+- A pasta .venv e criada automaticamente. O Python 3.14 tem de estar
+  instalado no Windows (com o launcher 'py'). Precisas de Internet
+  na primeira instalacao.
+- Nao partilhes o teu NPSSO. Ele e pedido localmente e nao e gravado.
+- Se quiseres sincronizar pelo terminal, fecha primeiro a app.

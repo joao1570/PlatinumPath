@@ -235,4 +235,12 @@ venv/
 .env
 .env.*
 !.env.example
-*npsso*Database/backups/
+*npsso*
+Database/backups/
+
+# Dados pessoais e ficheiros locais
+Database/amigos_cache.json
+Database/amigos_cache.tmp
+static/avatar_psn.png
+*.bak
+*.backup_*

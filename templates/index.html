@@ -376,6 +376,7 @@
     </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='visual.css') }}">
 <!-- PlatinumPath visual v2 -->
+<link rel="stylesheet" href="{{ url_for('static', filename='final.css') }}">
 </head>
 
 <body>
@@ -394,6 +395,15 @@
                 <a href="{{ url_for('amigos.lista_amigos') }}"><span class="nav-dot">♧</span> Amigos</a>
             </nav>
         </header>
+        <section class="pp-tools" aria-label="Sincronização PSN">
+            <div><strong>Sincronização PSN</strong><span id="sync-status" role="status">{% if psn_autenticada %}Sessão disponível{% else %}Inicia com INICIAR_COM_PSN.bat para sincronizar.{% endif %}</span></div>
+            <form id="sync-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="pp-button" type="submit" name="limite" value="30" {% if not psn_autenticada %}disabled{% endif %}>Atualizar troféus</button>
+              <button class="pp-button pp-secondary" type="submit" name="limite" value="0" {% if not psn_autenticada %}disabled{% endif %}>Todos os jogos</button>
+            </form>
+            <details id="sync-details" hidden><summary>Registo da sincronização</summary><pre id="sync-log"></pre><a href="{{ url_for('inicio') }}">Atualizar dashboard</a></details>
+        </section>
 
         <div class="intro-row">
             <div>
@@ -560,15 +570,16 @@
                data-ordem="{{ loop.index0 }}">
 
                 <div class="cover">
-                    🎮
-
                     {% if jogo["imagem_url"] %}
                         <img
                             src="{{ jogo['imagem_url'] }}"
                             alt="Imagem de {{ jogo['titulo'] }}"
                             loading="lazy"
                             referrerpolicy="no-referrer"
-                            onerror="this.style.display='none'">
+                            onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                        <span class="cover-fallback" style="display:none;font-size:12px;color:#9caecc">Sem capa</span>
+                    {% else %}
+                        <span class="cover-fallback" style="font-size:12px;color:#9caecc">Sem capa</span>
                     {% endif %}
                 </div>
 
@@ -734,5 +745,6 @@
         atualizarJogos();
     </script>
 
+<script src="{{ url_for('static', filename='sync.js') }}" defer></script>
 </body>
 </html>

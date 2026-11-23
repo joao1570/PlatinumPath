@@ -370,6 +370,7 @@ button, input, select { font: inherit; }
 }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='visual.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='final.css') }}">
 </head>
 
 <body>
@@ -435,6 +436,23 @@ button, input, select { font: inherit; }
     {% endfor %}
 </section>
 
+<section class="pp-tools pp-objectives" id="objetivos">
+    <div><strong>Objetivos para a platina</strong><span>{{ objetivos|selectattr('concluido')|list|length }} / {{ objetivos|length }} concluídos</span></div>
+    <form method="post" action="{{ url_for('gerir_objetivo', jogo_id=jogo['id']) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input name="descricao" maxlength="250" required placeholder="Ex.: Encontrar todos os colecionáveis" aria-label="Novo objetivo">
+        <button class="pp-button" name="acao" value="adicionar">Adicionar</button>
+    </form>
+    {% for objetivo in objetivos %}
+    <form class="pp-task" method="post" action="{{ url_for('gerir_objetivo', jogo_id=jogo['id']) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="objetivo_id" value="{{ objetivo['id'] }}">
+        <button class="pp-button pp-secondary" name="acao" value="alternar" aria-label="{% if objetivo['concluido'] %}Reabrir{% else %}Concluir{% endif %} objetivo">{% if objetivo['concluido'] %}✓{% else %}○{% endif %}</button>
+        <span class="{% if objetivo['concluido'] %}pp-done{% endif %}">{{ objetivo['descricao'] }}</span>
+        <button class="pp-button pp-secondary" name="acao" value="eliminar" aria-label="Eliminar objetivo">×</button>
+    </form>
+    {% else %}<p>Ainda não existem objetivos. Adiciona uma tarefa para planeares a próxima platina.</p>{% endfor %}
+</section>
 <div class="section-heading">
     <h2>Lista de troféus</h2>
     <span id="count">{{ total }} troféus</span>

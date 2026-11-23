@@ -3,7 +3,10 @@ import sqlite3
 import os
 import secrets
 
-from flask import Flask, abort, render_template
+from flask import Flask, abort, render_template, request, session, redirect, url_for, jsonify
+import hmac
+import sync_web
+from init_db import criar_base_dados
 from jogos import ligar_base_dados
 
 app = Flask(__name__)
@@ -12,6 +15,79 @@ app.secret_key = os.environ.get("PLATINUMPATH_SECRET_KEY") or secrets.token_hex(
 
 from amigos import amigos_bp
 app.register_blueprint(amigos_bp)
+
+
+def csrf_token():
+    if 'csrf_token' not in session:
+        session['csrf_token'] = secrets.token_urlsafe(32)
+    return session['csrf_token']
+
+
+app.jinja_env.globals['csrf_token'] = csrf_token
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
+
+
+@app.before_request
+def proteger_pedidos():
+    if request.method == 'POST':
+        esperado = session.get('csrf_token', '')
+        recebido = request.form.get('csrf_token', '')
+        if not esperado or not hmac.compare_digest(esperado.encode(), recebido.encode()):
+            abort(403)
+
+
+@app.after_request
+def cabecalhos(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    return response
+
+
+@app.post('/sincronizar')
+def sincronizar_web():
+    token = os.environ.get('PSN_NPSSO', '').strip()
+    if not token:
+        return jsonify(erro='Inicia a aplicação com INICIAR_COM_PSN.bat para autenticar.'), 400
+    limite_str = request.form.get('limite', '30')
+    if limite_str not in ('0', '30'):
+        abort(400)
+    limite = int(limite_str)
+    if limite not in (0, 30):
+        abort(400)
+    if not sync_web.iniciar(token, limite):
+        return jsonify(erro='Já existe uma sincronização em curso.'), 409
+    return jsonify(sync_web.estado()), 202
+
+
+@app.get('/sincronizar/estado')
+def estado_sincronizacao():
+    response = jsonify(sync_web.estado())
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.post('/jogo/<int:jogo_id>/objetivos')
+def gerir_objetivo(jogo_id):
+    acao = request.form.get('acao')
+    with ligar_base_dados() as conexao:
+        if not conexao.execute('SELECT 1 FROM jogos WHERE id=?', (jogo_id,)).fetchone():
+            abort(404)
+        if acao == 'adicionar':
+            descricao = request.form.get('descricao', '').strip()
+            if not 1 <= len(descricao) <= 250:
+                abort(400)
+            conexao.execute('INSERT INTO objetivos (jogo_id, descricao) VALUES (?,?)', (jogo_id, descricao))
+        elif acao in ('alternar', 'eliminar'):
+            objetivo_id = request.form.get('objetivo_id', type=int)
+            sql = ('UPDATE objetivos SET concluido=1-concluido WHERE id=? AND jogo_id=?'
+                   if acao == 'alternar' else 'DELETE FROM objetivos WHERE id=? AND jogo_id=?')
+            if conexao.execute(sql, (objetivo_id, jogo_id)).rowcount != 1:
+                abort(404)
+        else:
+            abort(400)
+    return redirect(url_for('detalhe_jogo', jogo_id=jogo_id) + '#objetivos')
+
 
 
 
@@ -104,7 +180,8 @@ def inicio():
         "index.html",
         jogos=jogos,
         perfil=perfil,
-        total_jogos=len(jogos)
+        total_jogos=len(jogos),
+        psn_autenticada=bool(os.environ.get("PSN_NPSSO", "").strip())
     )
 
 
@@ -185,6 +262,8 @@ def detalhe_jogo(jogo_id):
                 nome COLLATE NOCASE ASC
         """, (jogo_id,)).fetchall()
 
+        objetivos = conexao.execute("SELECT * FROM objetivos WHERE jogo_id=? ORDER BY concluido, id", (jogo_id,)).fetchall()
+
     total = len(trofeus)
 
     conquistados = sum(
@@ -218,9 +297,11 @@ def detalhe_jogo(jogo_id):
         total=total,
         conquistados=conquistados,
         progresso=progresso,
-        estatisticas=estatisticas
+        estatisticas=estatisticas,
+        objetivos=objetivos
     )
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    criar_base_dados()
+    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)

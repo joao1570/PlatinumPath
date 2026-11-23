@@ -5,6 +5,7 @@ O cache guarda IDs/avatares públicos, nunca tokens ou passwords.
 import json
 import os
 import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from threading import RLock, local
@@ -85,8 +86,19 @@ def _load_profile(account_id, token):
     if not isinstance(p, dict):
         raise ValueError('Perfil PSN inválido')
     agora = time.time()
+    # Os nomes reais só são usados quando a PSN os devolve para este amigo.
+    detalhes = p.get('personalDetail') or p.get('personal_details') or {}
+    if not isinstance(detalhes, dict):
+        detalhes = {}
+    nome = ' '.join(str(detalhes.get(campo, '')).strip() for campo in ('firstName', 'lastName')).strip()
+    if not nome:
+        for campo in ('displayName', 'realName', 'name'):
+            valor = p.get(campo)
+            if isinstance(valor, str) and valor.strip():
+                nome = valor.strip()
+                break
     return {'id': p.get('onlineId') or p.get('currentOnlineId') or p.get('online_id'),
-            'avatar': _avatar(p), 'plus': bool(p.get('isPlus') or p.get('plus')),
+            'nome_real': nome[:120], 'avatar': _avatar(p), 'plus': bool(p.get('isPlus') or p.get('plus')),
             'obtido': agora, 'avatar_verificado': agora}
 
 
@@ -126,7 +138,7 @@ def obter_pagina(psn=None, pagina=1, atualizar=False):
         faltam = [a for a in selected if
                   (a not in users or not users[a].get('id') or
                    (not users[a].get('avatar') and agora - users[a].get('avatar_verificado', 0) > 3600) or
-                   (atualizar and agora - users[a].get('obtido', 0) > 30))
+                   (atualizar and agora - users[a].get('obtido', 0) > 24 * 3600))
                   and agora - failed.get(a, 0) > PROFILE_RETRY_TTL]
         if faltam:
             token = os.environ['PSN_NPSSO'].strip()
@@ -155,3 +167,76 @@ def obter_pagina(psn=None, pagina=1, atualizar=False):
         else:
             amigos.append({'id': None, 'account_id': account_id, 'avatar': None, 'plus': False})
     return amigos, pagina, total, aviso
+
+
+# A pesquisa e a ordenação alfabética exigem perfis conhecidos de TODAS as páginas,
+# não apenas da página 1. Por isso o primeiro acesso autenticado constrói o índice
+# local (guardado em Database/amigos_cache.json) sem procurar utilizadores públicos.
+def obter_lista_completa(psn=None, atualizar=False):
+    cache = _read()
+    agora = time.time()
+    aviso = None
+
+    if psn is not None and (atualizar or not cache['accounts'] or agora - cache.get('updated', 0) > CACHE_TTL):
+        try:
+            novos = _account_ids(psn)
+            cache['accounts'] = novos
+            cache['updated'] = agora
+            _write(cache)
+        except Exception:
+            aviso = 'Não foi possível atualizar a lista da PSN. A usar a lista de amigos em cache.'
+    elif psn is None:
+        aviso = 'Sem sessão PSN: a usar apenas os amigos previamente carregados em cache.'
+
+    accounts = cache['accounts']
+    users = cache.setdefault('users', {})
+    failed = cache.setdefault('failed', {})
+    if psn is not None and os.environ.get('PSN_NPSSO', '').strip():
+        pendentes = [a for a in accounts if (
+            not isinstance(users.get(a), dict) or not users[a].get('id') or
+            (atualizar and agora - users[a].get('obtido', 0) > 24 * 3600)
+        ) and agora - failed.get(a, 0) > PROFILE_RETRY_TTL]
+        if pendentes:
+            token = os.environ['PSN_NPSSO'].strip()
+            # Máximo de 3 pedidos em paralelo para reduzir bloqueios e rate limits.
+            with ThreadPoolExecutor(max_workers=min(3, len(pendentes))) as pool:
+                tasks = {pool.submit(_load_profile, a, token): a for a in pendentes}
+                for future in as_completed(tasks):
+                    account_id = tasks[future]
+                    try:
+                        result = future.result()
+                        if result.get('id'):
+                            users[account_id] = result
+                            failed.pop(account_id, None)
+                        else:
+                            failed[account_id] = agora
+                    except Exception:
+                        failed[account_id] = agora
+            _write(cache)
+
+    conhecidos, desconhecidos = [], []
+    for account_id in accounts:
+        perfil = users.get(account_id)
+        if isinstance(perfil, dict) and perfil.get('id'):
+            conhecidos.append({**perfil, 'account_id': account_id})
+        else:
+            desconhecidos.append({'id': None, 'account_id': account_id, 'avatar': None, 'plus': False})
+    # Ordem alfabética natural, ignorando maiúsculas e acentos, sobre o ID PSN.
+    conhecidos.sort(key=lambda u: _chave_alfabetica(u['id']))
+    return conhecidos + desconhecidos, len(accounts), aviso, len(desconhecidos)
+
+
+def _chave_alfabetica(valor):
+    normalized = unicodedata.normalize('NFKD', str(valor or '').casefold())
+    return ''.join(c for c in normalized if not unicodedata.combining(c))
+
+
+def filtrar_amigos(amigos, termo):
+    """Filtra exclusivamente perfis confirmados da lista de amigos PSN."""
+    partes = _chave_alfabetica(termo).split()
+    if not partes:
+        return amigos
+    return [amigo for amigo in amigos if amigo.get('id') and all(
+        parte in _chave_alfabetica(' '.join((amigo.get('id') or '', amigo.get('nome_real') or '')))
+        for parte in partes
+    )]

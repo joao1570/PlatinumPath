@@ -9,11 +9,11 @@ def main():
     token = getpass.getpass('NPSSO da PlayStation (não é guardado): ').strip()
     if not token:
         print('NPSSO não introduzido.')
-        return
+        return 1
     env = os.environ.copy()
     env['PSN_NPSSO'] = token
-    subprocess.run([sys.executable, str(Path(__file__).resolve().parent / 'app.py')],
-                   cwd=Path(__file__).resolve().parent, env=env, check=False)
+    return subprocess.run([sys.executable, str(Path(__file__).resolve().parent / 'app.py')],
+                   cwd=Path(__file__).resolve().parent, env=env, check=False).returncode
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

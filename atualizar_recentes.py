@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import getpass
 import re
 import sqlite3
@@ -111,7 +112,7 @@ def total_esperado(titulo):
 
 
 def conexao():
-    db = sqlite3.connect(DB)
+    db = sqlite3.connect(DB, timeout=15)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys=ON")
     return db
@@ -225,6 +226,9 @@ def atualizar_jogo(db, titulo, plat, trofeus):
                     getattr(titulo, "title_icon_url", None),
                 ),
             ).lastrowid
+
+        db.execute("UPDATE jogos SET imagem_url=COALESCE(?, imagem_url) WHERE id=?",
+                   (getattr(titulo, "title_icon_url", None), jogo))
 
         novas = 0
 
@@ -395,7 +399,7 @@ def consultar_trofeus(eu, titulo, p, tentativas=3):
                 )
             )
 
-            if not temporario or i == tentativas - 1:
+            if not (temporario or type(e).__name__ in ("PSNAWPTooManyRequests", "PSNAWPServerError")) or i == tentativas - 1:
                 raise
 
             atraso = (10, 25, 45)[i]
@@ -438,7 +442,7 @@ def sincronizar(limite=30):
                 )
                 return 1
 
-    token = getpass.getpass(
+    token = os.environ.get("PSN_NPSSO", "").strip() or getpass.getpass(
         "NPSSO da PlayStation (nao e guardado): "
     ).strip()
 
@@ -469,7 +473,7 @@ def sincronizar(limite=30):
     except Exception as e:
         print(
             "ERRO na autenticacao ou consulta PSN:",
-            e,
+            type(e).__name__,
         )
         return 1
 
@@ -480,6 +484,7 @@ def sincronizar(limite=30):
         )
         and getattr(t, "title_name", None)
         and getattr(t, "title_platform", None)
+        and any(plataforma(p) in ("PS3", "PS4", "PS5") for p in t.title_platform)
     ]
 
     validos.sort(
@@ -543,7 +548,7 @@ def sincronizar(limite=30):
 
                     if not lista or (
                         esperado
-                        and len(lista) < esperado
+                        and len({(campos_trofeus(t)[0], campos_trofeus(t)[1]) for t in lista}) < esperado
                     ):
                         raise ValueError(
                             "Lista incompleta: "
@@ -572,7 +577,7 @@ def sincronizar(limite=30):
                 except Exception as e:
                     falhas += 1
                     print(
-                        "Falhou este jogo:", e
+                        "Falhou este jogo:", type(e).__name__
                     )
 
         try:
@@ -581,10 +586,11 @@ def sincronizar(limite=30):
                 "Perfil PSN atualizado."
             )
         except Exception as e:
+            falhas += 1
             print(
                 "Aviso: nao consegui "
                 "atualizar o perfil:",
-                e,
+                type(e).__name__,
             )
 
     print(

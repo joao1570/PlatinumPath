@@ -7,7 +7,7 @@ DATABASE_PATH = BASE_DIR / "Database" / "platinumpath.db"
 
 
 def ligar_base_dados():
-    conexao = sqlite3.connect(DATABASE_PATH)
+    conexao = sqlite3.connect(DATABASE_PATH, timeout=15)
     conexao.execute("PRAGMA foreign_keys = ON")
     return conexao
 

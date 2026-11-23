@@ -10,16 +10,18 @@
 <body>
 <main class="container">
   <header class="topbar"><a class="back" href="/" aria-label="Voltar ao início">‹</a><strong>Amigos PSN</strong></header>
-  <section class="hero"><h1>Os teus amigos</h1><p class="subtitle">Amigos da PlayStation Network e jogadores guardados no PlatinumPath</p></section>
-  <form class="lookup" action="{{ url_for('amigos.pesquisar_amigo') }}">
-    <input class="search" name="id" maxlength="16" required placeholder="Pesquisar ID da PSN" aria-label="ID da PSN">
-    <button class="btn primary" type="submit">Pesquisar</button>
+  <section class="hero"><h1>Os teus amigos</h1><p class="subtitle">Pesquisa apenas os teus amigos da PSN; lista em ordem alfabética pelo ID PSN.</p></section>
+  <form class="lookup" action="{{ url_for('amigos.lista_amigos') }}">
+    <input class="search" name="q" maxlength="80" value="{{ pesquisa }}" placeholder="Pesquisar entre os meus amigos (nome ou ID PSN)" aria-label="Pesquisar apenas os meus amigos da PSN">
+    <button class="btn primary" type="submit">Pesquisar amigos</button>
+    {% if pesquisa %}<a class="btn" href="{{ url_for('amigos.lista_amigos') }}">Limpar</a>{% endif %}
   </form>
   {% for categoria, msg in get_flashed_messages(with_categories=true) %}<p class="notice">{{ msg }}</p>{% endfor %}
   {% if erro %}<p class="notice">{{ erro }}</p>{% endif %}
+  {% if incompletos %}<p class="notice">{{ incompletos }} perfis ainda não foram carregados da PSN. A pesquisa poderá não os encontrar até serem atualizados. Usa «Atualizar PSN» e tenta novamente.</p>{% endif %}
   <div class="section-heading">
-    <h2>Jogadores</h2>
-    <span>{{ total_psn }} amigos PSN · {{ amigos|selectattr('id')|list|length }} perfis visíveis nesta página</span>
+    <h2>{{ 'Resultados nos meus amigos' if pesquisa else 'Amigos da PSN (A–Z)' }}</h2>
+    <span>{% if pesquisa %}{{ total_filtrados }} encontrados de {{ total_psn }} amigos{% else %}{{ total_psn }} amigos PSN{% endif %}</span>
   </div>
   <div class="friend-list">
     {% for amigo in amigos %}
@@ -27,7 +29,7 @@
         <a class="friend-card" href="{{ url_for('amigos.perfil_amigo', online_id=amigo.id) }}">
           {% if amigo.avatar %}<img class="avatar" src="{{ amigo.avatar }}" alt="Avatar de {{ amigo.id }}" loading="lazy" referrerpolicy="no-referrer">
           {% else %}<div class="avatar" aria-hidden="true"></div>{% endif %}
-          <span><strong>{{ amigo.id }}</strong><small>{{ 'Guardado no PlatinumPath' if amigo.id|lower in guardados else 'Amigo PSN' }}</small></span>
+          <span><strong>{{ amigo.id }}</strong><small>{% if amigo.nome_real %}{{ amigo.nome_real }} · {% endif %}Amigo PSN{% if amigo.id|lower in guardados %} · Guardado{% endif %}</small></span>
         </a>
       {% else %}
         <div class="friend-card unavailable" title="Este perfil ainda não foi carregado da PSN">
@@ -35,15 +37,29 @@
         </div>
       {% endif %}
     {% else %}
-      <div class="empty">Ainda não existem jogadores para mostrar. Pesquisa um ID para começar.</div>
+      <div class="empty">{% if pesquisa %}Nenhum dos teus amigos encontrados para «{{ pesquisa }}».{% else %}Ainda não existem amigos PSN para mostrar. Inicia a sessão e atualiza a lista.{% endif %}</div>
     {% endfor %}
   </div>
-  {% if total_psn %}
+  {% if total_psn or total_filtrados %}
     <div class="pagination">
-      {% if pagina_amigos > 1 %}<a class="btn" href="{{ url_for('amigos.lista_amigos',pagina=pagina_amigos-1) }}">‹ Anteriores</a>{% endif %}
-      <span>Página {{ pagina_amigos }} de {{ (total_psn + por_pagina - 1) // por_pagina }}</span>
-      {% if pagina_amigos * por_pagina < total_psn %}<a class="btn primary" href="{{ url_for('amigos.lista_amigos',pagina=pagina_amigos+1) }}">Mais amigos ›</a>{% endif %}
-      <a class="btn" href="{{ url_for('amigos.lista_amigos',pagina=pagina_amigos,atualizar=1) }}">Atualizar PSN</a>
+      {% if pagina_amigos > 1 %}<a class="btn" href="{{ url_for('amigos.lista_amigos', pagina=pagina_amigos-1, q=pesquisa) }}">‹ Anteriores</a>{% endif %}
+      <span>Página {{ pagina_amigos }} de {{ total_paginas }}</span>
+      {% if pagina_amigos < total_paginas %}<a class="btn primary" href="{{ url_for('amigos.lista_amigos', pagina=pagina_amigos+1, q=pesquisa) }}">Mais amigos ›</a>{% endif %}
+      <a class="btn" href="{{ url_for('amigos.lista_amigos', q=pesquisa, atualizar=1) }}">Atualizar PSN</a>
+    </div>
+  {% else %}
+    <div class="pagination"><a class="btn" href="{{ url_for('amigos.lista_amigos', q=pesquisa, atualizar=1) }}">Atualizar PSN</a></div>
+  {% endif %}
+  {% if guardados_lista and not pesquisa %}
+    <div class="section-heading"><h2>Jogadores guardados</h2><span>Lista local — podem não ser amigos PSN</span></div>
+    <div class="friend-list">
+      {% for guardado in guardados_lista %}
+        <a class="friend-card" href="{{ url_for('amigos.perfil_amigo', online_id=guardado.online_id) }}">
+          {% if guardado.avatar_url %}<img class="avatar" src="{{ guardado.avatar_url }}" alt="Avatar de {{ guardado.online_id }}" loading="lazy" referrerpolicy="no-referrer">
+          {% else %}<div class="avatar" aria-hidden="true"></div>{% endif %}
+          <span><strong>{{ guardado.online_id }}</strong><small>Guardado no PlatinumPath</small></span>
+        </a>
+      {% endfor %}
     </div>
   {% endif %}
 </main>
