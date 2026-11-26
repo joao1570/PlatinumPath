@@ -222,3 +222,81 @@ body > .container {
 }
 
 /* PLATINUMPATH FUNDO PS PEQUENO - FIM */
+
+/* AJUSTES VISUAIS DASHBOARD - NOV 2026 */
+.brand-symbol{padding:8px!important;background:linear-gradient(145deg,rgba(97,158,255,.28),rgba(42,65,162,.85))!important}
+.brand-logo{width:100%;height:100%;display:block;object-fit:contain;filter:drop-shadow(0 3px 9px rgba(82,156,255,.3))}
+.metric-icon.metric-icon-image{padding:8px}
+.metric-icon.metric-icon-image img{width:100%;height:100%;object-fit:contain;display:block}
+.profile-total{display:grid!important;grid-template-columns:minmax(0,1.8fr) minmax(120px,.8fr)!important;align-items:stretch!important}
+.profile-total .profile-total-label,
+.profile-total .profile-total-value{padding:16px 18px}
+.profile-total .profile-total-label{display:flex;flex-direction:column;justify-content:center;gap:5px}
+.profile-total .profile-total-label span{font-size:14px;font-weight:700;color:#f5f8ff}
+.profile-total .profile-total-label small{color:var(--pp-muted);font-size:12px;line-height:1.35}
+.profile-total .profile-total-value{display:flex;align-items:center;justify-content:center;border-left:1px solid rgba(149,180,240,.12);text-align:center}
+.profile-total .profile-total-value strong{font-size:34px;line-height:1;letter-spacing:-.045em;color:#dfe9ff}
+@media (max-width:520px){
+  .profile-total{grid-template-columns:1fr!important}
+  .profile-total .profile-total-value{border-left:0;border-top:1px solid rgba(149,180,240,.12)}
+  .profile-total .profile-total-value strong{font-size:28px}
+}
+
+/* AJUSTES LOGO E CARTAO PLATINAS - NOV 2026 */
+.brand-symbol{border-radius:18px!important;padding:7px!important;background:radial-gradient(circle at 30% 25%,rgba(177,221,255,.38),transparent 34%),linear-gradient(145deg,#1b2f69,#0d1a43 78%)!important;box-shadow:0 14px 30px rgba(22,51,137,.36)!important}
+.brand-logo{transform:scale(1.02)}
+.metric-icon-platinum{padding:11px!important}
+.metric-icon-platinum img{width:72%!important;height:72%!important;margin:auto;display:block;object-fit:contain}
+.metric-card-platinum .metric-icon{background:linear-gradient(145deg,rgba(120,198,255,.95),rgba(84,114,255,.92))!important}
+
+
+/* PLATINUMPATH VISUAL V3: logo autonomo e platina em tamanho fixo. */
+header.site-header .brand-symbol {
+  width: 82px !important;
+  height: 66px !important;
+  min-width: 82px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  overflow: visible;
+}
+header.site-header .brand-symbol .brand-logo {
+  display: block;
+  width: 82px !important;
+  height: 66px !important;
+  max-width: none;
+  object-fit: contain;
+  transform: none !important;
+  filter: drop-shadow(0 3px 8px rgba(62, 149, 255, .24));
+}
+.metric-card-platinum .metric-icon-platinum {
+  flex: 0 0 46px;
+  width: 46px !important;
+  height: 46px !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 14px;
+}
+.metric-card-platinum .metric-icon-platinum img {
+  display: block !important;
+  width: 30px !important;
+  height: 30px !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 auto !important;
+  object-fit: contain !important;
+}
+@media (max-width: 520px) {
+  header.site-header .brand-symbol {
+    width: 68px !important;
+    min-width: 68px !important;
+    height: 58px !important;
+  }
+  header.site-header .brand-symbol .brand-logo {
+    width: 68px !important;
+    height: 58px !important;
+  }
+}

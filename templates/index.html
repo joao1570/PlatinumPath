@@ -376,7 +376,6 @@
     </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='visual.css') }}">
 <!-- PlatinumPath visual v2 -->
-<link rel="stylesheet" href="{{ url_for('static', filename='final.css') }}">
 </head>
 
 <body>
@@ -384,7 +383,7 @@
 
         <header class="site-header">
             <div class="brand-lockup">
-                <span class="brand-symbol" aria-hidden="true">✦</span>
+                <span class="brand-symbol" aria-hidden="true"><img src="{{ url_for('static', filename='icons/platinumpath_logo_v3.png') }}" alt="" class="brand-logo"></span>
                 <div>
                     <h1 class="brand-title">PLATINUM<span>PATH</span></h1>
                     <span class="brand-caption">A tua jornada PlayStation</span>
@@ -395,15 +394,6 @@
                 <a href="{{ url_for('amigos.lista_amigos') }}"><span class="nav-dot">♧</span> Amigos</a>
             </nav>
         </header>
-        <section class="pp-tools" aria-label="Sincronização PSN">
-            <div><strong>Sincronização PSN</strong><span id="sync-status" role="status">{% if psn_autenticada %}Sessão disponível{% else %}Inicia com INICIAR_COM_PSN.bat para sincronizar.{% endif %}</span></div>
-            <form id="sync-form">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="pp-button" type="submit" name="limite" value="30" {% if not psn_autenticada %}disabled{% endif %}>Atualizar troféus</button>
-              <button class="pp-button pp-secondary" type="submit" name="limite" value="0" {% if not psn_autenticada %}disabled{% endif %}>Todos os jogos</button>
-            </form>
-            <details id="sync-details" hidden><summary>Registo da sincronização</summary><pre id="sync-log"></pre><a href="{{ url_for('inicio') }}">Atualizar dashboard</a></details>
-        </section>
 
         <div class="intro-row">
             <div>
@@ -486,11 +476,13 @@
             </div>
 
             <div class="profile-total">
-                <span>Total de troféus PSN</span>
-                <strong>
-                    {{ perfil["bronze"] + perfil["prata"] +
-                       perfil["ouro"] + perfil["platina"] }}
-                </strong>
+                <div class="profile-total-label">
+                    <span>Total de troféus PSN</span>
+                    <small>Soma de bronze, prata, ouro e platina</small>
+                </div>
+                <div class="profile-total-value">
+                    <strong>{{ perfil["bronze"] + perfil["prata"] + perfil["ouro"] + perfil["platina"] }}</strong>
+                </div>
             </div>
 
         </section>
@@ -502,8 +494,8 @@
         {% endif %}
 
         <section class="metric-grid" aria-label="Resumo da biblioteca">
-            <div class="metric-card"><span class="metric-icon" aria-hidden="true">▣</span><div class="metric-body"><strong>{{ total_jogos }}</strong><span>Jogos na biblioteca</span></div></div>
-            <div class="metric-card"><span class="metric-icon" aria-hidden="true">✦</span><div class="metric-body"><strong>{{ jogos|sum(attribute='platinas') }}</strong><span>Platinas conquistadas</span></div></div>
+            <div class="metric-card"><span class="metric-icon metric-icon-image" aria-hidden="true"><img src="{{ url_for('static', filename='icons/library_games.svg') }}" alt=""></span><div class="metric-body"><strong>{{ total_jogos }}</strong><span>Jogos na biblioteca</span></div></div>
+            <div class="metric-card metric-card-platinum"><span class="metric-icon metric-icon-image metric-icon-platinum" aria-hidden="true"><img src="{{ url_for('static', filename='icons/platinum_trophy.png') }}" alt=""></span><div class="metric-body"><strong>{{ jogos|sum(attribute='platinas') }}</strong><span>Platinas conquistadas</span></div></div>
             <div class="metric-card"><span class="metric-icon" aria-hidden="true">◔</span><div class="metric-body"><strong>{{ ((jogos|sum(attribute='progresso')) / total_jogos)|round|int if total_jogos else 0 }}%</strong><span>Progresso médio</span></div></div>
         </section>
 
@@ -745,6 +737,5 @@
         atualizarJogos();
     </script>
 
-<script src="{{ url_for('static', filename='sync.js') }}" defer></script>
 </body>
 </html>
